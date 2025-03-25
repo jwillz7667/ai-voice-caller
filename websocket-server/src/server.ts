@@ -1,6 +1,6 @@
 import express from "express";
 import { WebSocketServer, WebSocket } from "ws";
-import { IncomingMessage } from "http";
+import { IncomingMessage, ServerResponse } from "http";
 import dotenv from "dotenv";
 import http from "http";
 import { readFileSync } from "fs";
@@ -34,7 +34,7 @@ app.use(cors({
 }));
 
 // Add security headers
-app.use((req, res, next) => {
+app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
@@ -52,11 +52,11 @@ const wss = new WebSocketServer({ server });
 const twimlPath = join(__dirname, "twiml.xml");
 const twimlTemplate = readFileSync(twimlPath, "utf-8");
 
-app.get("/public-url", (req, res) => {
+app.get("/public-url", (req: express.Request, res: express.Response) => {
   res.json({ publicUrl: PUBLIC_URL });
 });
 
-app.all("/twiml", (req, res) => {
+app.all("/twiml", (req: express.Request, res: express.Response) => {
   const wsUrl = new URL(PUBLIC_URL);
   wsUrl.protocol = "wss:";
   wsUrl.pathname = `/call`;
@@ -66,12 +66,12 @@ app.all("/twiml", (req, res) => {
 });
 
 // New endpoint to list available tools (schemas)
-app.get("/tools", (req, res) => {
+app.get("/tools", (req: express.Request, res: express.Response) => {
   res.json(functions.map((f) => f.schema));
 });
 
 // Add endpoint for initiating outgoing calls
-app.post("/make-call", express.json(), async (req, res) => {
+app.post("/make-call", express.json(), async (req: express.Request, res: express.Response) => {
   try {
     const { phoneNumber } = req.body;
     
@@ -107,7 +107,7 @@ app.post("/make-call", express.json(), async (req, res) => {
 });
 
 // Add this new endpoint for handling configuration data
-app.post("/config", express.json(), (req: any, res: any) => {
+app.post("/config", express.json(), (req: express.Request, res: express.Response) => {
   try {
     const config = req.body;
     console.log("Received session configuration:", config);

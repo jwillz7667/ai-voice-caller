@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: twilio-realtime-websocket
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    nodeVersion: 18.12.1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL_URL
+        value: wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17
+      - key: ALLOWED_ORIGIN
+        sync: false
+      - key: PUBLIC_URL
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false 
