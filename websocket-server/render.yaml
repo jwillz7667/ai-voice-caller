@@ -2,7 +2,7 @@ services:
   - type: web
     name: twilio-realtime-websocket
     env: node
-    buildCommand: npm install && npm run build
+    buildCommand: npm install && npm install --save @types/express @types/cors && npm run build
     startCommand: npm start
     nodeVersion: 18.12.1
     envVars:
