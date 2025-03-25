@@ -4,8 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && cp -r out/_next out/next && cp out/404.html out/index.html",
-    "postbuild": "next-on-netlify",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },

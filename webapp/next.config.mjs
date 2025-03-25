@@ -5,7 +5,8 @@ const nextConfig = {
     unoptimized: true
   },
   // This is important for Netlify deployment to handle client-side routing
-  trailingSlash: true
+  trailingSlash: false,
+  distDir: 'out'
 };
 
 export default nextConfig;

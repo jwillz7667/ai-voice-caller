@@ -6,19 +6,18 @@
 [build.environment]
   NODE_VERSION = "18"
 
-# Handle client-side routing
+# Handle client-side routing with SPA fallback
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-  force = true
 
 # Redirect from /index.html to /
 [[redirects]]
   from = "/index.html"
   to = "/"
   status = 301
-  force = true
+  force = false
 
 # Support for environment variables in runtime
 [functions]

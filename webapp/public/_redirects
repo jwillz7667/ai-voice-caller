@@ -1,8 +1,5 @@
 # Netlify redirects file
 
-# Redirect domain aliases to primary domain
-https://www.yourdomain.com/* https://yourdomain.com/:splat 301!
-
 # Handle SPA routing - redirect all paths to index.html
 /*    /index.html   200
 
