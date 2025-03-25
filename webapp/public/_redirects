@@ -1,2 +1,10 @@
-# Redirects for client-side routing
-/*    /index.html   200 
+# Netlify redirects file
+
+# Redirect domain aliases to primary domain
+https://www.yourdomain.com/* https://yourdomain.com/:splat 301!
+
+# Handle SPA routing - redirect all paths to index.html
+/*    /index.html   200
+
+# Optional: Force HTTPS
+http://*   https://:splat  301! 

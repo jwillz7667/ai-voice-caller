@@ -11,6 +11,14 @@
   from = "/*"
   to = "/index.html"
   status = 200
+  force = true
+
+# Redirect from /index.html to /
+[[redirects]]
+  from = "/index.html"
+  to = "/"
+  status = 301
+  force = true
 
 # Support for environment variables in runtime
 [functions]
