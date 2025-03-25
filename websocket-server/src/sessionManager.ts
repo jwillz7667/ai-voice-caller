@@ -1,12 +1,22 @@
 import { RawData, WebSocket } from "ws";
 import functions from "./functionHandlers";
 
+interface OpenAISessionConfig {
+  modalities: string[];
+  turn_detection: { type: string };
+  input_audio_format: string;
+  output_audio_format: string;
+  voice?: string;
+  instructions?: string;
+  tools?: any[];
+}
+
 interface Session {
   twilioConn?: WebSocket;
   frontendConn?: WebSocket;
   modelConn?: WebSocket;
   streamSid?: string;
-  saved_config?: any;
+  saved_config?: OpenAISessionConfig;
   lastAssistantItem?: string;
   responseStartTimestamp?: number;
   latestMediaTimestamp?: number;
@@ -120,6 +130,8 @@ function tryConnectModel() {
     return;
   if (isOpen(session.modelConn)) return;
 
+  console.log("Using session configuration:", session.saved_config);
+
   session.modelConn = new WebSocket(
     "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17",
     {
@@ -131,18 +143,37 @@ function tryConnectModel() {
   );
 
   session.modelConn.on("open", () => {
-    const config = session.saved_config || {};
+    // Extract saved configuration and ensure it's properly typed
+    const savedConfig = session.saved_config || {} as OpenAISessionConfig;
+    console.log("Applying configuration to OpenAI session:", savedConfig);
+
+    const sessionConfig: OpenAISessionConfig = {
+      modalities: ["text", "audio"],
+      turn_detection: { type: "server_vad" },
+      input_audio_format: "g711_ulaw",
+      output_audio_format: "g711_ulaw",
+    };
+
+    // Apply user-specified voice if provided
+    if (savedConfig.voice) {
+      sessionConfig.voice = savedConfig.voice;
+    } else {
+      sessionConfig.voice = "ash"; // default voice
+    }
+    
+    // Apply user-specified instructions if provided
+    if (savedConfig.instructions) {
+      sessionConfig.instructions = savedConfig.instructions;
+    }
+    
+    // Apply user-specified tools if provided
+    if (savedConfig.tools && Array.isArray(savedConfig.tools) && savedConfig.tools.length > 0) {
+      sessionConfig.tools = savedConfig.tools;
+    }
+
     jsonSend(session.modelConn, {
       type: "session.update",
-      session: {
-        modalities: ["text", "audio"],
-        turn_detection: { type: "server_vad" },
-        voice: "ash",
-        input_audio_transcription: { model: "whisper-1" },
-        input_audio_format: "g711_ulaw",
-        output_audio_format: "g711_ulaw",
-        ...config,
-      },
+      session: sessionConfig,
     });
   });
 
@@ -169,6 +200,13 @@ function handleModelMessage(data: RawData) {
         }
         if (event.item_id) session.lastAssistantItem = event.item_id;
 
+        // Debug logging to verify audio data is being received
+        console.log("Sending audio delta to Twilio", {
+          hasData: !!event.delta,
+          dataLength: event.delta ? event.delta.length : 0,
+          streamSid: session.streamSid
+        });
+
         jsonSend(session.twilioConn, {
           event: "media",
           streamSid: session.streamSid,
@@ -178,6 +216,11 @@ function handleModelMessage(data: RawData) {
         jsonSend(session.twilioConn, {
           event: "mark",
           streamSid: session.streamSid,
+        });
+      } else {
+        console.error("Cannot send audio: Missing Twilio connection or streamSid", {
+          hasTwilioConn: !!session.twilioConn,
+          hasStreamSid: !!session.streamSid
         });
       }
       break;
@@ -271,8 +314,20 @@ function cleanupConnection(ws?: WebSocket) {
 
 function parseMessage(data: RawData): any {
   try {
-    return JSON.parse(data.toString());
-  } catch {
+    const msg = JSON.parse(data.toString());
+    
+    // Enhanced logging for audio data
+    if (msg.type === "response.audio.delta") {
+      console.log("OpenAI audio delta received:", {
+        hasData: !!msg.delta,
+        dataLength: msg.delta ? msg.delta.length : 0,
+        itemId: msg.item_id || null
+      });
+    }
+    
+    return msg;
+  } catch (err) {
+    console.error("Failed to parse message:", err);
     return null;
   }
 }
@@ -284,4 +339,28 @@ function jsonSend(ws: WebSocket | undefined, obj: unknown) {
 
 function isOpen(ws?: WebSocket): ws is WebSocket {
   return !!ws && ws.readyState === WebSocket.OPEN;
+}
+
+export function setSessionConfig(config: OpenAISessionConfig) {
+  console.log("Setting session configuration:", config);
+  session.saved_config = config;
+  
+  // If we already have an active model connection, update it with the new configuration
+  if (isOpen(session.modelConn)) {
+    console.log("Updating active OpenAI session with new configuration");
+    jsonSend(session.modelConn, {
+      type: "session.update",
+      session: {
+        modalities: ["text", "audio"],
+        turn_detection: { type: "server_vad" },
+        input_audio_format: "g711_ulaw_8khz", // Updated to explicitly specify 8khz
+        output_audio_format: "g711_ulaw_8khz", // Updated to explicitly specify 8khz
+        voice: config.voice || "ash",
+        ...(config.instructions && { instructions: config.instructions }),
+        ...(config.tools && Array.isArray(config.tools) && config.tools.length > 0 && { tools: config.tools }),
+      },
+    });
+  }
+  
+  return true;
 }

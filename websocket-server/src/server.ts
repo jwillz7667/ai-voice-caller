@@ -6,10 +6,7 @@ import http from "http";
 import { readFileSync } from "fs";
 import { join } from "path";
 import cors from "cors";
-import {
-  handleCallConnection,
-  handleFrontendConnection,
-} from "./sessionManager";
+import * as sessionManager from "./sessionManager";
 import functions from "./functionHandlers";
 
 dotenv.config();
@@ -51,29 +48,76 @@ app.get("/tools", (req, res) => {
   res.json(functions.map((f) => f.schema));
 });
 
+// Add endpoint for initiating outgoing calls
+app.post("/make-call", express.json(), async (req, res) => {
+  try {
+    const { phoneNumber } = req.body;
+    
+    if (!phoneNumber) {
+      res.status(400).json({ error: "Phone number is required" });
+      return;
+    }
+    
+    // Make sure we're using the secure public URL for production
+    const twilioClient = require("twilio")(
+      process.env.TWILIO_ACCOUNT_SID,
+      process.env.TWILIO_AUTH_TOKEN
+    );
+    
+    // Get the TwiML URL for the call
+    const twimlUrl = new URL("/twiml", PUBLIC_URL).toString();
+    
+    // Place the outgoing call using Twilio
+    const call = await twilioClient.calls.create({
+      to: phoneNumber,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      url: twimlUrl,
+    });
+    
+    res.json({ success: true, callSid: call.sid });
+  } catch (error: any) {
+    console.error("Error making outgoing call:", error);
+    res.status(500).json({ 
+      error: "Failed to make outgoing call", 
+      message: error.message 
+    });
+  }
+});
+
+// Add this new endpoint for handling configuration data
+app.post("/config", express.json(), (req: any, res: any) => {
+  try {
+    const config = req.body;
+    console.log("Received session configuration:", config);
+    
+    // Store the configuration in the session manager
+    if (sessionManager.setSessionConfig) {
+      sessionManager.setSessionConfig(config);
+      res.status(200).json({ success: true });
+    } else {
+      res.status(500).json({ error: "Session manager not available" });
+    }
+  } catch (error) {
+    console.error("Error handling configuration:", error);
+    res.status(500).json({ error: "Failed to process configuration" });
+  }
+});
+
 let currentCall: WebSocket | null = null;
 let currentLogs: WebSocket | null = null;
 
+// Improved WebSocket connection handler
 wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
-  const url = new URL(req.url || "", `http://${req.headers.host}`);
-  const parts = url.pathname.split("/").filter(Boolean);
+  console.log(`New WebSocket connection: ${req.url}`);
 
-  if (parts.length < 1) {
-    ws.close();
-    return;
-  }
-
-  const type = parts[0];
-
-  if (type === "call") {
-    if (currentCall) currentCall.close();
-    currentCall = ws;
-    handleCallConnection(currentCall, OPENAI_API_KEY);
-  } else if (type === "logs") {
-    if (currentLogs) currentLogs.close();
-    currentLogs = ws;
-    handleFrontendConnection(currentLogs);
+  if (req.url === "/call") {
+    console.log("New Twilio call connection established");
+    sessionManager.handleCallConnection(ws, OPENAI_API_KEY);
+  } else if (req.url === "/logs") {
+    console.log("New frontend logs connection established");
+    sessionManager.handleFrontendConnection(ws);
   } else {
+    console.error(`Unknown WebSocket connection type: ${req.url}`);
     ws.close();
   }
 });

@@ -9,11 +9,13 @@ import { Item } from "@/components/types";
 type FunctionCallsPanelProps = {
   items: Item[];
   ws?: WebSocket | null; // pass down ws from parent
+  sendMessage?: (message: any) => void; // Custom message sender with logging
 };
 
 const FunctionCallsPanel: React.FC<FunctionCallsPanelProps> = ({
   items,
   ws,
+  sendMessage,
 }) => {
   const [responses, setResponses] = useState<Record<string, string>>({});
 
@@ -39,21 +41,40 @@ const FunctionCallsPanel: React.FC<FunctionCallsPanelProps> = ({
     setResponses((prev) => ({ ...prev, [call_id]: value }));
   };
 
-  const handleSubmit = (call: Item) => {
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    const call_id = call.call_id || "";
-    ws.send(
-      JSON.stringify({
-        type: "conversation.item.create",
-        item: {
-          type: "function_call_output",
-          call_id: call_id,
-          output: JSON.stringify(responses[call_id] || ""),
-        },
-      })
-    );
-    // Ask the model to continue after providing the tool response
-    ws.send(JSON.stringify({ type: "response.create" }));
+  const handleSubmit = (callId: string, output: string) => {
+    console.log("Submitting output for function call:", { callId, output });
+    setResponses({ ...responses, [callId]: "" });
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try {
+        const message = {
+          type: "conversation.item.create",
+          item: {
+            type: "function_call_output",
+            call_id: callId,
+            output: output,
+          },
+        };
+
+        // Use sendMessage if available, otherwise use ws.send directly
+        if (sendMessage) {
+          sendMessage(message);
+        } else {
+          ws.send(JSON.stringify(message));
+        }
+
+        // Send a response.create message to trigger the assistant to respond
+        const createResponse = { type: "response.create" };
+        
+        if (sendMessage) {
+          sendMessage(createResponse);
+        } else {
+          ws.send(JSON.stringify(createResponse));
+        }
+      } catch (error) {
+        console.error("Error sending output:", error);
+      }
+    }
   };
 
   return (
@@ -94,7 +115,9 @@ const FunctionCallsPanel: React.FC<FunctionCallsPanelProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleSubmit(call)}
+                      onClick={() =>
+                        handleSubmit(call.call_id || "", responses[call.call_id || ""] || "")
+                      }
                       disabled={!responses[call.call_id || ""]}
                       className="w-full"
                     >
