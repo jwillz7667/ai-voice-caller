@@ -36,9 +36,6 @@ export default function AuthForm() {
         showLinks={true}
         providers={[]}
         redirectTo={`${typeof window !== 'undefined' ? window.location.origin : ''}/dashboard`}
-        onViewChange={(newView) => {
-          setView(newView as 'sign_in' | 'sign_up');
-        }}
         magicLink={true}
         localization={{
           variables: {
