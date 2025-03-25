@@ -110,7 +110,6 @@ export async function POST(request: Request) {
       statusCallbackEvent: ['completed'],
       statusCallbackMethod: 'POST',
       // Pass user ID as a parameter to the status callback
-      statusCallbackEvents: ['completed'],
       trim: 'do-not-trim',
       record: false,
       recordingStatusCallback: statusCallbackUrl,
