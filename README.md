@@ -2,7 +2,7 @@
 
 A real-time voice calling application that integrates OpenAI's GPT-4o Realtime API with Twilio's phone calling capabilities to create an AI voice assistant that can make and receive phone calls.
 
-![Jingle.AI Interface](https://github.com/user-attachments/assets/d3c8dcce-b339-410c-85ca-864a8e0fc326)
+![Jingle.AI Call Dashboard](screenshots/call-dashboard.png)
 
 ## Features
 
@@ -12,6 +12,12 @@ A real-time voice calling application that integrates OpenAI's GPT-4o Realtime A
 - **Live Call Logs**: View real-time transcripts and logs of ongoing calls
 - **Customizable AI Behavior**: Configure the AI's voice, instructions, and available tools
 - **WebSocket Communication**: Reliable real-time communication between all components
+
+## Application Interface
+
+The Jingle.AI application provides a modern, intuitive interface for AI-powered voice calling:
+
+![Jingle.AI Landing Page](screenshots/landing-page.png)
 
 ## System Architecture
 
