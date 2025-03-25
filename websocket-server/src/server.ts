@@ -11,7 +11,9 @@ import functions from "./functionHandlers";
 
 dotenv.config();
 
-const PORT = parseInt(process.env.PORT || "8081", 10);
+// Enable dynamic port switching
+// Get port from environment variable or command line argument
+const PORT = parseInt(process.env.PORT || process.argv[2] || "8081", 10);
 const PUBLIC_URL = process.env.PUBLIC_URL || "";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 
@@ -21,11 +23,31 @@ if (!OPENAI_API_KEY) {
 }
 
 const app = express();
-app.use(cors());
+
+// Security improvements
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? [process.env.ALLOWED_ORIGIN || ''].filter(Boolean) 
+    : '*',
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Add security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  next();
+});
+
+// Use JSON body parser with limits
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: false, limit: '100kb' }));
+
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
-
-app.use(express.urlencoded({ extended: false }));
 
 const twimlPath = join(__dirname, "twiml.xml");
 const twimlTemplate = readFileSync(twimlPath, "utf-8");
@@ -108,7 +130,39 @@ let currentLogs: WebSocket | null = null;
 
 // Improved WebSocket connection handler
 wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
-  console.log(`New WebSocket connection: ${req.url}`);
+  // Add basic rate limiting
+  const clientIp = req.socket.remoteAddress || 'unknown';
+  
+  // Validate URLs and origin for security
+  if (!req.url) {
+    console.error("WebSocket connection without URL");
+    ws.close(1008, "Invalid connection");
+    return;
+  }
+  
+  // Prevent connections from unauthorized origins in production
+  if (process.env.NODE_ENV === 'production') {
+    const origin = req.headers.origin;
+    const allowedOrigins = [process.env.ALLOWED_ORIGIN, process.env.PUBLIC_URL].filter(Boolean);
+    
+    if (allowedOrigins.length > 0 && origin && !allowedOrigins.includes(origin)) {
+      console.error(`Rejected WebSocket from unauthorized origin: ${origin}`);
+      ws.close(1008, "Unauthorized origin");
+      return;
+    }
+  }
+
+  console.log(`New WebSocket connection: ${req.url} from ${clientIp}`);
+
+  // Add connection timeout
+  const connectionTimeout = setTimeout(() => {
+    console.log(`Closing inactive WebSocket connection: ${req.url}`);
+    ws.close(1001, "Connection timeout");
+  }, 30 * 60 * 1000); // 30 minutes timeout
+  
+  ws.on('close', () => {
+    clearTimeout(connectionTimeout);
+  });
 
   if (req.url === "/call") {
     console.log("New Twilio call connection established");
@@ -118,10 +172,19 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
     sessionManager.handleFrontendConnection(ws);
   } else {
     console.error(`Unknown WebSocket connection type: ${req.url}`);
-    ws.close();
+    ws.close(1008, "Invalid endpoint");
   }
 });
 
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+  
+  // Display ngrok command suggestion if PUBLIC_URL is not set
+  if (!PUBLIC_URL || PUBLIC_URL === "your-ngrok-url.ngrok-free.app") {
+    console.log(`To expose this server to the internet, run: ngrok http ${PORT}`);
+    console.log(`Then update PUBLIC_URL in your .env file with the ngrok URL`);
+  }
 });
+
+// Export port for external use (e.g., in scripts)
+export { PORT };

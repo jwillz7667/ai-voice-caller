@@ -1,8 +1,8 @@
-# AI Voice Caller - Powered by OpenAI & Twilio
+# Jingle.AI - Powered by OpenAI & Twilio
 
 A real-time voice calling application that integrates OpenAI's GPT-4o Realtime API with Twilio's phone calling capabilities to create an AI voice assistant that can make and receive phone calls.
 
-![AI Voice Caller Interface](https://github.com/user-attachments/assets/d3c8dcce-b339-410c-85ca-864a8e0fc326)
+![Jingle.AI Interface](https://github.com/user-attachments/assets/d3c8dcce-b339-410c-85ca-864a8e0fc326)
 
 ## Features
 

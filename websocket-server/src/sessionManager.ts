@@ -66,7 +66,19 @@ async function handleFunctionCall(item: { name: string; arguments: string }) {
 
   let args: unknown;
   try {
-    args = JSON.parse(item.arguments);
+    // Safely parse JSON to prevent prototype pollution
+    const argumentString = item.arguments && typeof item.arguments === 'string' 
+      ? item.arguments 
+      : '{}';
+    
+    args = JSON.parse(argumentString);
+    
+    // Validate that args is a plain object and not null
+    if (!args || typeof args !== 'object' || Array.isArray(args)) {
+      return JSON.stringify({
+        error: "Arguments must be a valid object.",
+      });
+    }
   } catch {
     return JSON.stringify({
       error: "Invalid JSON arguments for function call.",
@@ -132,8 +144,10 @@ function tryConnectModel() {
 
   console.log("Using session configuration:", session.saved_config);
 
+  const MODEL_URL = process.env.OPENAI_MODEL_URL || "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17";
+  
   session.modelConn = new WebSocket(
-    "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17",
+    MODEL_URL,
     {
       headers: {
         Authorization: `Bearer ${session.openAIApiKey}`,
@@ -314,6 +328,11 @@ function cleanupConnection(ws?: WebSocket) {
 
 function parseMessage(data: RawData): any {
   try {
+    if (!data || !data.toString().trim()) {
+      console.warn("Received empty or invalid message data");
+      return null;
+    }
+    
     const msg = JSON.parse(data.toString());
     
     // Enhanced logging for audio data

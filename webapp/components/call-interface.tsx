@@ -35,7 +35,7 @@ const CallInterface = () => {
   >([]);
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [sessionConfig, setSessionConfig] = useState({
-    instructions: "You are a helpful assistant in a phone call.",
+    instructions: "You are Jingle.AI, a helpful voice assistant in a phone call.",
     voice: "alloy",
     tools: []
   });
@@ -223,7 +223,7 @@ const CallInterface = () => {
   }, []);
 
   return (
-    <div className="h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-950 flex flex-col">
       <ChecklistAndConfig
         ready={allConfigsReady}
         setReady={setAllConfigsReady}
@@ -231,34 +231,36 @@ const CallInterface = () => {
         setSelectedPhoneNumber={setSelectedPhoneNumber}
       />
       <TopBar />
-      <div className="flex-grow p-4 h-full overflow-hidden flex flex-col">
-        <div className="grid grid-cols-12 gap-4 h-full">
+      <div className="flex-grow p-4 lg:p-6 h-full overflow-hidden flex flex-col animate-fade-in">
+        <div className="grid grid-cols-12 gap-4 lg:gap-6 h-full">
           {/* Left Column */}
-          <div className="col-span-3 flex flex-col h-full overflow-hidden gap-4">
-            <SessionConfigurationPanel
-              callStatus={callStatus}
-              onSave={(config) => {
-                setSessionConfig(config);
-                const updateEvent = {
-                  type: "session.update",
-                  session: {
-                    instructions: config.instructions,
-                    voice: config.voice,
-                    tools: config.tools,
-                  },
-                };
-                console.log("Sending update event:", updateEvent);
-                sendMessage(updateEvent);
-              }}
-            />
-            <div className="flex-1 p-4 border rounded-md">
+          <div className="col-span-12 md:col-span-3 flex flex-col h-full overflow-hidden gap-4 lg:gap-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl">
+              <SessionConfigurationPanel
+                callStatus={callStatus}
+                onSave={(config) => {
+                  setSessionConfig(config);
+                  const updateEvent = {
+                    type: "session.update",
+                    session: {
+                      instructions: config.instructions,
+                      voice: config.voice,
+                      tools: config.tools,
+                    },
+                  };
+                  console.log("Sending update event:", updateEvent);
+                  sendMessage(updateEvent);
+                }}
+              />
+            </div>
+            <div className="flex-1 bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl">
               <div className="flex justify-between items-center mb-2">
-                <h3 className="text-sm font-semibold">Logs Preview</h3>
+                <h3 className="text-sm font-semibold dark:text-white">Logs Preview</h3>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => window.location.href = '/logs'}
-                  className="text-xs"
+                  className="text-xs rounded-full"
                 >
                   View Full Logs
                 </Button>
@@ -270,26 +272,34 @@ const CallInterface = () => {
           </div>
 
           {/* Middle Column: Transcript */}
-          <div className="col-span-6 flex flex-col gap-4 h-full overflow-hidden">
-            <PhoneNumberChecklist
-              selectedPhoneNumber={selectedPhoneNumber}
-              allConfigsReady={allConfigsReady}
-              setAllConfigsReady={setAllConfigsReady}
-            />
-            <OutgoingCall 
-              onCallInitiated={handleCallInitiated} 
-              currentConfig={sessionConfig}
-            />
-            <Transcript items={items} />
+          <div className="col-span-12 md:col-span-6 flex flex-col gap-4 lg:gap-6 h-full overflow-hidden">
+            <div className="animate-fade-in-up animate-delay-100 bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl">
+              <PhoneNumberChecklist
+                selectedPhoneNumber={selectedPhoneNumber}
+                allConfigsReady={allConfigsReady}
+                setAllConfigsReady={setAllConfigsReady}
+              />
+            </div>
+            <div className="animate-fade-in-up animate-delay-200 bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl">
+              <OutgoingCall 
+                onCallInitiated={handleCallInitiated} 
+                currentConfig={sessionConfig}
+              />
+            </div>
+            <div className="flex-1 animate-fade-in-up animate-delay-300 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl overflow-hidden">
+              <Transcript items={items} />
+            </div>
           </div>
 
           {/* Right Column: Function Calls */}
-          <div className="col-span-3 flex flex-col h-full overflow-hidden">
-            <FunctionCallsPanel 
-              items={items} 
-              ws={ws} 
-              sendMessage={sendMessage} 
-            />
+          <div className="col-span-12 md:col-span-3 flex flex-col h-full overflow-hidden">
+            <div className="h-full animate-fade-in-up animate-delay-400 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl overflow-hidden">
+              <FunctionCallsPanel 
+                items={items} 
+                ws={ws} 
+                sendMessage={sendMessage} 
+              />
+            </div>
           </div>
         </div>
       </div>

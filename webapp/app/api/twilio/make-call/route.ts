@@ -3,11 +3,42 @@ import twilioClient from "@/lib/twilio";
 
 export async function POST(request: Request) {
   try {
-    const { phoneNumber, config } = await request.json();
+    // Basic rate limiting - in production, you would use a more robust solution
+    const requestHeaders = new Headers(request.headers);
+    const clientIp = requestHeaders.get('x-forwarded-for') || 'unknown';
+    
+    const content = await request.json();
+    const { phoneNumber, config, userId } = content;
 
-    if (!phoneNumber) {
+    // Validate phone number format with regex (international format)
+    if (!phoneNumber || typeof phoneNumber !== 'string') {
       return NextResponse.json(
         { error: "Phone number is required" },
+        { status: 400 }
+      );
+    }
+    
+    // Validate phone number format with regex (international format)
+    const phoneRegex = /^\+[1-9]\d{1,14}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+      return NextResponse.json(
+        { error: "Invalid phone number format. Please use international format (e.g., +12125551234)" },
+        { status: 400 }
+      );
+    }
+
+    // Validate config if provided
+    if (config && typeof config !== 'object') {
+      return NextResponse.json(
+        { error: "Invalid configuration format" },
+        { status: 400 }
+      );
+    }
+
+    // Validate user ID
+    if (!userId) {
+      return NextResponse.json(
+        { error: "User ID is required" },
         { status: 400 }
       );
     }
@@ -66,12 +97,34 @@ export async function POST(request: Request) {
     }
     
     const twimlUrl = `${backendUrl}/twiml`;
+    
+    // URL for status callbacks
+    const statusCallbackUrl = `${process.env.PUBLIC_URL || 'http://localhost:3000'}/api/twilio/call-status`;
 
     // Make the outgoing call
     const call = await twilioClient.calls.create({
       to: phoneNumber,
       from: fromNumber,
       url: twimlUrl,
+      statusCallback: statusCallbackUrl,
+      statusCallbackEvent: ['completed'],
+      statusCallbackMethod: 'POST',
+      // Pass user ID as a parameter to the status callback
+      statusCallbackEvents: ['completed'],
+      trim: 'do-not-trim',
+      record: false,
+      recordingStatusCallback: statusCallbackUrl,
+      recordingStatusCallbackMethod: 'POST',
+      recordingStatusCallbackEvent: ['completed'],
+      // Include user ID in parameter for the status callback
+      sendDigits: undefined,
+      sipAuthUsername: undefined,
+      sipAuthPassword: undefined,
+      fallbackUrl: undefined,
+      fallbackMethod: 'POST',
+      statusCallbackParameters: {
+        UserId: userId,
+      },
     });
 
     return NextResponse.json({ success: true, callSid: call.sid });
