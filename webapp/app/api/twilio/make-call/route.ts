@@ -99,7 +99,17 @@ export async function POST(request: Request) {
     const twimlUrl = `${backendUrl}/twiml`;
     
     // URL for status callbacks
-    const statusCallbackUrl = `${process.env.PUBLIC_URL || 'http://localhost:3000'}/api/twilio/call-status`;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.PUBLIC_URL;
+    if (!appUrl) {
+      return NextResponse.json(
+        { 
+          error: "Missing application URL", 
+          message: "Please set NEXT_PUBLIC_APP_URL in your environment variables." 
+        },
+        { status: 400 }
+      );
+    }
+    const statusCallbackUrl = `${appUrl}/api/twilio/call-status?userId=${encodeURIComponent(userId)}`;
 
     // Make the outgoing call
     const call = await twilioClient.calls.create({
@@ -109,21 +119,16 @@ export async function POST(request: Request) {
       statusCallback: statusCallbackUrl,
       statusCallbackEvent: ['completed'],
       statusCallbackMethod: 'POST',
-      // Pass user ID as a parameter to the status callback
       trim: 'do-not-trim',
       record: false,
       recordingStatusCallback: statusCallbackUrl,
       recordingStatusCallbackMethod: 'POST',
       recordingStatusCallbackEvent: ['completed'],
-      // Include user ID in parameter for the status callback
       sendDigits: undefined,
       sipAuthUsername: undefined,
       sipAuthPassword: undefined,
       fallbackUrl: undefined,
       fallbackMethod: 'POST',
-      statusCallbackParameters: {
-        UserId: userId,
-      },
     });
 
     return NextResponse.json({ success: true, callSid: call.sid });
