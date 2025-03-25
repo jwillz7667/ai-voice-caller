@@ -6,7 +6,7 @@
 [build.environment]
   NODE_VERSION = "18"
 
-# Handle client-side routing with SPA fallback
+# Single page app handling
 [[redirects]]
   from = "/*"
   to = "/index.html"

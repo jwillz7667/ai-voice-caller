@@ -4,7 +4,7 @@ const nextConfig = {
   images: {
     unoptimized: true
   },
-  // This is important for Netlify deployment to handle client-side routing
+  // Disable trailing slash for Netlify compatibility
   trailingSlash: false,
   distDir: 'out'
 };
