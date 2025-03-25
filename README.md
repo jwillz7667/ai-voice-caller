@@ -105,6 +105,41 @@ The system consists of three main components:
    - In your Twilio console, set the Voice Webhook URL to `https://your-ngrok-url/twiml`
    - Make sure to update your environment variables with the new ngrok URL whenever it changes
 
+## Deployment
+
+### Netlify Deployment (Frontend)
+
+The frontend (Next.js application) is configured for Netlify deployment:
+
+1. **Connect your GitHub repository to Netlify**
+   - Sign in to Netlify
+   - Click "New site from Git"
+   - Select your repository and connect
+
+2. **Configure build settings in Netlify dashboard**
+   - Build command: `cd webapp && npm install && npm run build`
+   - Publish directory: `webapp/out`
+
+3. **Environment Variables**
+   - Set all required environment variables in the Netlify dashboard
+   - These should match your `.env.production` file
+
+4. **WebSocket Backend**
+   - Deploy the WebSocket server separately on a service that supports WebSockets
+   - Options include Heroku, Render, AWS, or Digital Ocean
+   - Update the `NEXT_PUBLIC_WEBSOCKET_URL` in your Netlify environment variables to point to your deployed backend
+
+5. **Update Twilio Configuration**
+   - Update your Twilio webhook URL to point to your deployed WebSocket server
+
+### Production Considerations
+
+When deploying to production, consider:
+- Using a dedicated domain
+- Setting up SSL certificates
+- Implementing rate limiting
+- Configuring proper CORS settings between frontend and backend
+
 ## Usage
 
 ### Making an Incoming Call

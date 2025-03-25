@@ -1,0 +1,17 @@
+[build]
+  base = "webapp"
+  command = "npm run build"
+  publish = "out"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+# Handle client-side routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Support for environment variables in runtime
+[functions]
+  directory = "netlify/functions"
