@@ -25,4 +25,5 @@ export type CreditsTransaction = {
   transaction_type: 'purchase' | 'usage';
   created_at: string;
   payment_id?: string;
+  description?: string;
 }; 
