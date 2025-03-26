@@ -22,7 +22,7 @@ interface LogEntry {
 
 const CallInterface = () => {
   const [selectedPhoneNumber, setSelectedPhoneNumber] = useState("");
-  const [allConfigsReady, setAllConfigsReady] = useState(false);
+  const [allConfigsReady, setAllConfigsReady] = useState(true);
   const [items, setItems] = useState<Item[]>([]);
   const [callStatus, setCallStatus] = useState("disconnected");
   const [realtimeLogs, setRealtimeLogs] = useState<
@@ -151,7 +151,7 @@ const CallInterface = () => {
   };
 
   useEffect(() => {
-    if (allConfigsReady && !ws) {
+    if (!ws) {
       // Create WebSocket connection
       const websocket = new WebSocket(
         process.env.NEXT_PUBLIC_WEBSOCKET_URL || "ws://localhost:8081/logs"
@@ -208,7 +208,7 @@ const CallInterface = () => {
         websocket.close();
       };
     }
-  }, [allConfigsReady]);
+  }, []);
 
   // Load logs from localStorage on component mount
   useEffect(() => {
@@ -224,12 +224,6 @@ const CallInterface = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-950 flex flex-col">
-      <ChecklistAndConfig
-        ready={allConfigsReady}
-        setReady={setAllConfigsReady}
-        selectedPhoneNumber={selectedPhoneNumber}
-        setSelectedPhoneNumber={setSelectedPhoneNumber}
-      />
       <TopBar />
       <div className="flex-grow p-4 lg:p-6 h-full overflow-hidden flex flex-col animate-fade-in">
         <div className="grid grid-cols-12 gap-4 lg:gap-6 h-full">
@@ -276,8 +270,8 @@ const CallInterface = () => {
             <div className="animate-fade-in-up animate-delay-100 bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl">
               <PhoneNumberChecklist
                 selectedPhoneNumber={selectedPhoneNumber}
-                allConfigsReady={allConfigsReady}
-                setAllConfigsReady={setAllConfigsReady}
+                allConfigsReady={true}
+                setAllConfigsReady={() => {}}
               />
             </div>
             <div className="animate-fade-in-up animate-delay-200 bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl">

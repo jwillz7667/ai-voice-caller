@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-const CREDITS_PER_MINUTE = 5; // 5 credits per minute of call
+const CREDITS_PER_MINUTE = 1; // 1 credit per minute of call
 
 export async function POST(request: Request) {
   try {

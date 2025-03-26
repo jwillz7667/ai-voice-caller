@@ -15,8 +15,8 @@ interface OutgoingCallProps {
   currentConfig?: any; 
 }
 
-const CREDITS_PER_MINUTE = 5;
-const MIN_REQUIRED_CREDITS = 5; // Minimum credits required to make a call
+const CREDITS_PER_MINUTE = 1;
+const MIN_REQUIRED_CREDITS = 1; // Minimum credits required to make a call
 
 export default function OutgoingCall({ onCallInitiated, currentConfig }: OutgoingCallProps) {
   const [phoneNumber, setPhoneNumber] = useState("");

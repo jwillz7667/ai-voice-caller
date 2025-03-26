@@ -8,9 +8,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 });
 
 const CREDIT_PACKAGES = {
-  small: { price: 5, credits: 50 },
-  medium: { price: 10, credits: 120 },
-  large: { price: 20, credits: 250 },
+  starter: { price: 9.99, credits: 100 },
+  professional: { price: 19.99, credits: 250 },
+  enterprise: { price: 49.99, credits: 750 },
+  unlimited: { price: 99.99, credits: 2000 },
 };
 
 export async function POST(request: Request) {
@@ -44,8 +45,8 @@ export async function POST(request: Request) {
         },
       ],
       mode: 'payment',
-      success_url: `${returnUrl || process.env.NEXT_PUBLIC_APP_URL}/credits?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${returnUrl || process.env.NEXT_PUBLIC_APP_URL}/credits?canceled=true`,
+      success_url: returnUrl ? `${returnUrl}?success=true&session_id={CHECKOUT_SESSION_ID}` : `${process.env.NEXT_PUBLIC_APP_URL}/credits?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: returnUrl ? `${returnUrl}?canceled=true` : `${process.env.NEXT_PUBLIC_APP_URL}/credits?canceled=true`,
       metadata: {
         userId,
         credits,

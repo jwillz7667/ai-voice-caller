@@ -11,13 +11,13 @@ export default function LandingPage() {
       <Header />
       
       {/* Hero Section */}
-      <header className="container mx-auto px-4 py-20 flex flex-col items-center text-center">
+      <header className="container mx-auto px-4 py-24 flex flex-col items-center text-center">
         <div className="animate-fade-in-up">
-          <h1 className="text-5xl md:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-blue-500 mb-6">
+          <h1 className="text-5xl md:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-blue-500 mb-10">
             Jingle.AI Voice Calling
           </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-10">
-            Leverage OpenAI's Realtime API with Twilio to create intelligent, responsive voice experiences that feel natural and human-like.
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-12">
+            Leverage advanced AI technology to create intelligent, responsive voice experiences that feel natural and human-like.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/dashboard">
@@ -50,7 +50,7 @@ export default function LandingPage() {
             {
               icon: <Headset className="h-10 w-10 text-indigo-500" />,
               title: "Real-time Responses",
-              description: "Minimal latency for natural conversation flow with OpenAI's Realtime API."
+              description: "Minimal latency for natural conversation flow with advanced AI technology."
             },
             {
               icon: <Zap className="h-10 w-10 text-indigo-500" />,
@@ -82,43 +82,57 @@ export default function LandingPage() {
         <h2 className="text-3xl font-bold text-center mb-16 text-gray-800">
           Simple, Transparent Pricing
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 max-w-6xl mx-auto">
           {[
             {
-              name: "Basic",
-              price: "$5",
-              credits: 50,
+              name: "Starter",
+              price: "$9.99",
+              credits: 100,
               description: "Perfect for casual users and testing",
               features: [
-                "50 voice credits",
-                "Approximately 10 minutes of calls",
+                "100 voice credits",
+                "Approximately 20 minutes of calls",
                 "Standard support",
               ],
             },
             {
-              name: "Standard",
-              price: "$10",
-              credits: 120,
+              name: "Professional",
+              price: "$19.99",
+              credits: 250,
               description: "Most popular for regular users",
               featured: true,
               features: [
-                "120 voice credits",
-                "Approximately 24 minutes of calls",
+                "250 voice credits",
+                "Approximately 50 minutes of calls",
                 "Priority support",
                 "Advanced call analytics"
               ],
             },
             {
-              name: "Premium",
-              price: "$20",
-              credits: 250,
-              description: "Best value for power users",
+              name: "Enterprise",
+              price: "$49.99",
+              credits: 750,
+              description: "Ideal for business users",
               features: [
-                "250 voice credits",
-                "Approximately 50 minutes of calls",
+                "750 voice credits",
+                "Approximately 150 minutes of calls",
                 "Premium support",
                 "Advanced call analytics",
                 "Custom voice settings"
+              ],
+            },
+            {
+              name: "Unlimited",
+              price: "$99.99",
+              credits: 2000,
+              description: "Best value for power users",
+              features: [
+                "2000 voice credits",
+                "Approximately 400 minutes of calls",
+                "24/7 Support",
+                "Advanced call analytics",
+                "Custom voice settings",
+                "Priority processing"
               ],
             },
           ].map((plan, index) => (
@@ -191,7 +205,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="bg-gray-50 py-12 text-gray-600">
         <div className="container mx-auto px-4 text-center">
-          <p>© {new Date().getFullYear()} Jingle.AI. Built with OpenAI Realtime API and Twilio.</p>
+          <p>© {new Date().getFullYear()} Jingle.AI. All rights reserved.</p>
         </div>
       </footer>
     </div>

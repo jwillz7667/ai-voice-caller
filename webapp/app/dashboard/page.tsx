@@ -76,10 +76,10 @@ export default function DashboardPage() {
           <div className="bg-background rounded-lg border p-4">
             <div className="text-sm font-medium text-muted-foreground mb-2">Call Minutes Available</div>
             <div className="text-2xl font-bold">
-              {Math.floor((profile?.credits || 0) / 5)}
+              {Math.floor((profile?.credits || 0) / 1)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              At 5 credits per minute
+              At 1 credit per minute
             </p>
           </div>
           <div className="bg-background rounded-lg border p-4">

@@ -6,9 +6,10 @@ import { toast } from 'react-hot-toast';
 import { useUserStore } from '@/lib/user-store';
 
 const CREDIT_PACKAGES = [
-  { id: 'small', name: 'Basic', price: 5, credits: 50, description: 'Good for casual users' },
-  { id: 'medium', name: 'Standard', price: 10, credits: 120, description: 'Most popular', featured: true },
-  { id: 'large', name: 'Premium', price: 20, credits: 250, description: 'Best value' },
+  { id: 'starter', name: 'Starter', price: 9.99, credits: 100, description: 'Perfect for casual users' },
+  { id: 'professional', name: 'Professional', price: 19.99, credits: 250, description: 'Most popular', featured: true },
+  { id: 'enterprise', name: 'Enterprise', price: 49.99, credits: 750, description: 'Ideal for business use' },
+  { id: 'unlimited', name: 'Unlimited', price: 99.99, credits: 2000, description: 'Best value for power users' },
 ];
 
 export default function Credits() {
@@ -25,10 +26,8 @@ export default function Credits() {
     setLoading(packageId);
 
     try {
-      // In development, use mock checkout endpoint
-      const endpoint = process.env.NODE_ENV === 'development' 
-        ? '/api/dev-mock-checkout' 
-        : '/api/create-checkout-session';
+      // Always use the real Stripe checkout endpoint
+      const endpoint = '/api/create-checkout-session';
         
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -72,7 +71,7 @@ export default function Credits() {
           <p className="text-sm text-muted-foreground mt-1">Available credits</p>
         </div>
         <div className="text-sm text-muted-foreground">
-          <p>Credits are used for AI voice calls at a rate of 5 credits per minute.</p>
+          <p>Credits are used for AI voice calls at a rate of 1 credit per minute.</p>
         </div>
       </div>
 
