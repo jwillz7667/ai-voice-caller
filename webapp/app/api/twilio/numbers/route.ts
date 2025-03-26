@@ -1,31 +1,35 @@
-import twilioClient from "@/lib/twilio";
+import { NextResponse } from "next/server";
 
 export async function GET() {
-  if (!twilioClient) {
-    return Response.json(
-      { error: "Twilio client not initialized" },
-      { status: 500 }
-    );
-  }
-
-  const incomingPhoneNumbers = await twilioClient.incomingPhoneNumbers.list({
-    limit: 20,
-  });
-  return Response.json(incomingPhoneNumbers);
+  // Static exports don't support server-side API routes with dynamic behavior
+  // Return a static response for the build process
+  return new NextResponse(
+    JSON.stringify({
+      error: 'API routes cannot be accessed with static exports. Please use client-side Twilio SDK for phone numbers.',
+      data: []
+    }),
+    {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  );
 }
 
 export async function POST(req: Request) {
-  if (!twilioClient) {
-    return Response.json(
-      { error: "Twilio client not initialized" },
-      { status: 500 }
-    );
-  }
-
-  const { phoneNumberSid, voiceUrl } = await req.json();
-  const incomingPhoneNumber = await twilioClient
-    .incomingPhoneNumbers(phoneNumberSid)
-    .update({ voiceUrl });
-
-  return Response.json(incomingPhoneNumber);
+  // Static exports don't support server-side API routes with dynamic behavior
+  // Return a static error response for the build process
+  return new NextResponse(
+    JSON.stringify({
+      error: 'API routes cannot be accessed with static exports. This functionality requires dynamic server endpoints.',
+      message: 'Please deploy this application with server-side support to use Twilio phone number features.'
+    }),
+    {
+      status: 405,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  );
 }
