@@ -1,32 +1,20 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-// Set this route to be dynamically rendered
-export const dynamic = 'force-dynamic';
+// Remove the dynamic export to make it compatible with static exports
 
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const userId = url.searchParams.get('userId');
-
-  if (!userId) {
-    return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('credits')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching user credits:', error);
-      return NextResponse.json({ error: 'Failed to fetch credits' }, { status: 500 });
+  // Static exports don't support server-side API routes with dynamic behavior
+  // Return a 405 Method Not Allowed status for static builds
+  return new NextResponse(
+    JSON.stringify({
+      error: 'API routes cannot be accessed with static exports. Please fetch data directly from Supabase client-side.'
+    }),
+    {
+      status: 405,
+      headers: {
+        'Content-Type': 'application/json',
+      },
     }
-
-    return NextResponse.json({ credits: data?.credits || 0 });
-  } catch (error) {
-    console.error('Error fetching credits:', error);
-    return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
-  }
+  );
 } 
