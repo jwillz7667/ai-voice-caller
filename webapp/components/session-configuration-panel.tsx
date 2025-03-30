@@ -11,6 +11,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Plus, Edit, Trash, Check, AlertCircle } from "lucide-react";
+import { Switch, Label } from "@/components/ui";
 import { toolTemplates } from "@/lib/tool-templates";
 import { ToolConfigurationDialog } from "./tool-configuration-dialog";
 import { BackendTag } from "./backend-tag";
@@ -30,6 +31,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   );
   const [voice, setVoice] = useState("ash");
   const [tools, setTools] = useState<string[]>([]);
+  const [recordCall, setRecordCall] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingSchemaStr, setEditingSchemaStr] = useState("");
   const [isJsonValid, setIsJsonValid] = useState(true);
@@ -46,7 +48,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   // Track changes to determine if there are unsaved modifications
   useEffect(() => {
     setHasUnsavedChanges(true);
-  }, [instructions, voice, tools]);
+  }, [instructions, voice, tools, recordCall]);
 
   // Reset save status after a delay when saved
   useEffect(() => {
@@ -65,6 +67,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
         instructions,
         voice,
         tools: tools.map((tool) => JSON.parse(tool)),
+        recordCall,
       });
       setSaveStatus("saved");
       setHasUnsavedChanges(false);
@@ -201,6 +204,17 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="record-call"
+                checked={recordCall}
+                onCheckedChange={setRecordCall}
+              />
+              <Label htmlFor="record-call" className="text-sm font-medium">
+                Record Call
+              </Label>
             </div>
 
             <div className="space-y-2">

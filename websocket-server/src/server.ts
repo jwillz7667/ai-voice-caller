@@ -6,6 +6,7 @@ import http from "http";
 import { readFileSync } from "fs";
 import { join } from "path";
 import cors from "cors";
+import Handlebars from "handlebars";
 import * as sessionManager from "./sessionManager";
 import functions from "./functionHandlers";
 
@@ -29,6 +30,7 @@ app.use(express.urlencoded({ extended: false }));
 
 const twimlPath = join(__dirname, "twiml.xml");
 const twimlTemplate = readFileSync(twimlPath, "utf-8");
+const twimlHandlebars = Handlebars.compile(twimlTemplate);
 
 app.get("/public-url", (req, res) => {
   res.json({ publicUrl: PUBLIC_URL });
@@ -38,8 +40,20 @@ app.all("/twiml", (req, res) => {
   const wsUrl = new URL(PUBLIC_URL);
   wsUrl.protocol = "wss:";
   wsUrl.pathname = `/call`;
-
-  const twimlContent = twimlTemplate.replace("{{WS_URL}}", wsUrl.toString());
+  
+  // Get recording configuration - check process.env or use session config
+  const recordCall = process.env.RECORD_CALL === 'true';
+  const recordingStatusUrl = recordCall ? 
+    new URL("/recording-status", PUBLIC_URL).toString() : 
+    '';
+  
+  // Use Handlebars to render the template with all variables
+  const twimlContent = twimlHandlebars({
+    WS_URL: wsUrl.toString(),
+    RECORD_CALL: recordCall,
+    RECORDING_STATUS_URL: recordingStatusUrl
+  });
+  
   res.type("text/xml").send(twimlContent);
 });
 
@@ -100,6 +114,30 @@ app.post("/config", express.json(), (req: any, res: any) => {
   } catch (error) {
     console.error("Error handling configuration:", error);
     res.status(500).json({ error: "Failed to process configuration" });
+  }
+});
+
+// Add recording status callback endpoint
+app.post("/recording-status", express.json(), (req, res) => {
+  try {
+    console.log("Recording status update received:", req.body);
+    
+    // Here you would typically:
+    // 1. Log the recording details
+    // 2. Store recording info in your database
+    // 3. Update the session with recording info
+    
+    // Example of recording data from Twilio:
+    // - RecordingSid: The unique ID of the recording
+    // - RecordingUrl: The URL where the recording can be accessed
+    // - RecordingStatus: The status of the recording (completed, failed, etc.)
+    // - RecordingDuration: The duration of the recording in seconds
+    
+    // Send success response back to Twilio
+    res.status(200).send();
+  } catch (error) {
+    console.error("Error handling recording status:", error);
+    res.status(500).json({ error: "Failed to process recording status" });
   }
 });
 
