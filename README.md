@@ -12,6 +12,9 @@ A real-time voice calling application that integrates OpenAI's GPT-4o Realtime A
 - **Live Call Logs**: View real-time transcripts and logs of ongoing calls
 - **Customizable AI Behavior**: Configure the AI's voice, instructions, and available tools
 - **WebSocket Communication**: Reliable real-time communication between all components
+- **Collapsible Sidebar Navigation**: Professional UI with expandable/collapsible sidebar for easier navigation
+- **Centralized Environment Management**: Streamlined configuration with standardized environment variables
+- **Settings Page**: Dedicated page for application configuration and preferences
 
 ## System Architecture
 
@@ -54,25 +57,29 @@ The system consists of three main components:
 
 3. **Configure environment variables**
 
-   Create `.env` files in both the `webapp/` and `websocket-server/` directories:
+   Create `.env` files based on the provided `.env.example` templates in both the `webapp/` and `websocket-server/` directories:
 
-   **webapp/.env**
+   **webapp/.env.example**
    ```
-   TWILIO_ACCOUNT_SID=your_twilio_account_sid
-   TWILIO_AUTH_TOKEN=your_twilio_auth_token
-   BACKEND_URL=your_ngrok_url
-   NEXT_PUBLIC_WEBSOCKET_URL=wss://your_ngrok_url/logs
-   ```
-
-   **websocket-server/.env**
-   ```
-   PORT=8081
-   OPENAI_API_KEY=your_openai_api_key
-   PUBLIC_URL=your_ngrok_url
+   # Twilio
    TWILIO_ACCOUNT_SID=your_twilio_account_sid
    TWILIO_AUTH_TOKEN=your_twilio_auth_token
    TWILIO_PHONE_NUMBER=your_twilio_phone_number
+
+   # Backend ngrok url (same ngrok url used in websocket-server/.env)
+   BACKEND_URL=your_backend_ngrok_url
    ```
+
+   **websocket-server/.env.example**
+   ```
+   # OpenAI
+   OPENAI_API_KEY=your_openai_api_key
+
+   # Backend ngrok url (same ngrok url used in webapp/.env)
+   PUBLIC_URL=your_backend_ngrok_url
+   ```
+
+   Note: The project uses a centralized environment variables system to ensure consistency between components. Make sure both `.env` files are properly configured.
 
 4. **Start the application**
 
@@ -112,10 +119,18 @@ The system consists of three main components:
 3. Click "Call" to initiate the call
 4. Wait for the recipient to answer and speak with the AI assistant
 
+### Navigating the Interface
+1. Use the collapsible sidebar to navigate between different sections:
+   - **Dashboard/Call Interface**: Main calling interface for making outgoing calls
+   - **Logs**: View real-time transcription and call events
+   - **Settings**: Configure application preferences and settings
+2. Collapse the sidebar by clicking the arrow icon to maximize screen space
+3. Expand the sidebar to see full navigation labels
+
 ### Viewing Logs
-1. During a call, navigate to http://localhost:3000/logs
+1. During a call, click the "Logs" option in the sidebar
 2. View the real-time transcription and call events
-3. Use the home button to return to the main interface
+3. Use the sidebar to navigate back to the main interface
 
 ## Troubleshooting
 
@@ -142,19 +157,25 @@ The system consists of three main components:
 
 ```
 ai-voice-caller/
-├── webapp/               # Next.js frontend application
-│   ├── app/              # Next.js app directory
-│   ├── components/       # React components
-│   └── public/           # Static assets
-├── websocket-server/     # Express WebSocket server
-│   ├── src/              # Server source code
-│   └── twiml.xml         # Twilio Markup Language template
+├── webapp/                  # Next.js frontend application
+│   ├── app/                 # Next.js app directory
+│   │   ├── logs/            # Call logs page
+│   │   ├── settings/        # Settings page
+│   ├── components/          # React components
+│   │   ├── sidebar.tsx      # Collapsible navigation sidebar
+│   │   ├── client-layout.tsx # Client-side layout component
+│   └── public/              # Static assets
+├── websocket-server/        # Express WebSocket server
+│   ├── src/                 # Server source code
+│   └── twiml.xml            # Twilio Markup Language template
 ```
 
 ### Key Files
 
 - `webapp/components/call-interface.tsx`: Main call interface component
+- `webapp/components/sidebar.tsx`: Collapsible navigation sidebar
 - `webapp/app/logs/page.tsx`: Live call logs page
+- `webapp/app/settings/page.tsx`: Settings configuration page
 - `websocket-server/src/server.ts`: WebSocket server implementation
 - `websocket-server/src/sessionManager.ts`: Manages connections and message passing
 - `websocket-server/src/twiml.xml`: TwiML template for Twilio
