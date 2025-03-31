@@ -11,7 +11,8 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Phone
+  Phone,
+  Mic
 } from "lucide-react";
 
 type SidebarItemProps = {
@@ -88,6 +89,12 @@ export default function Sidebar() {
           icon={<ClipboardList size={20} />}
           label="Logs"
           href="/logs"
+          isCollapsed={isCollapsed}
+        />
+        <SidebarItem
+          icon={<Mic size={20} />}
+          label="Recordings"
+          href="/recordings"
           isCollapsed={isCollapsed}
         />
         <SidebarItem

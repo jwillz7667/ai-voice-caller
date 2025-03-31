@@ -3,7 +3,5 @@
   <Connect>
     <Stream url="{{WS_URL}}" />
   </Connect>
-  {{#if RECORD_CALL}}
-  <Record recordingStatusCallback="{{RECORDING_STATUS_URL}}" />
-  {{/if}}
 </Response>
+

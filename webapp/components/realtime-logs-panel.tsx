@@ -22,7 +22,14 @@ import {
   Code, 
   Copy, 
   Info, 
-  Eye 
+  Eye,
+  CheckCircle2,
+  XCircle,
+  Zap,
+  Volume2,
+  Mic,
+  Video,
+  CircleDot
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -147,47 +154,59 @@ export const RealtimeLogs = ({ logs, fullPage = false }: { logs: LogEntry[], ful
     }
   };
 
-  // Enhanced data formatting function for better readability
-  const formatData = (data: any, isRaw = false): string => {
-    if (!data) return "null";
-    
-    if (isRaw) {
-      // Raw JSON representation
-      return JSON.stringify(data, null, 2);
+  // Function to get an appropriate icon for log event type
+  const getEventIcon = (type: string) => {
+    if (type === "connection_open") return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+    if (type === "connection_closed") return <XCircle className="h-4 w-4 text-red-500" />;
+    if (type === "connection_error") return <AlertCircle className="h-4 w-4 text-red-500" />;
+    if (type === "error") return <AlertCircle className="h-4 w-4 text-red-500" />;
+    if (type === "response.output_item.done") return <Zap className="h-4 w-4 text-yellow-500" />;
+    if (type === "response.audio.delta") return <Volume2 className="h-4 w-4 text-blue-500" />;
+    if (type.includes("speech")) return <Mic className="h-4 w-4 text-green-500" />;
+    if (type === "recording" || type === "recording_received") return <Video className="h-4 w-4 text-purple-500" />;
+    return <CircleDot className="h-4 w-4 text-gray-500" />;
+  };
+
+  // Function to format log data into readable text
+  const formatLogData = (type: string, data: any): string => {
+    try {
+      if (type === "recording" || type === "recording_received") {
+        if (data.data && data.data.recordingUrl) {
+          return `Recording available: SID=${data.data.recordingSid} Duration=${data.data.duration}s URL=${data.data.recordingUrl}`;
+        }
+        return "Recording event received";
+      }
+      
+      if (type === "session.update" && data.status) {
+        return `Status: ${data.status}`;
+      }
+      
+      if (type === "media" && data.chunk && data.chunk.type) {
+        // Truncate large media chunks for display
+        const chunkSize = data.chunk.size || data.chunk.length || 0;
+        return `Media chunk: ${data.chunk.type}, Size: ${formatBytes(chunkSize)}`;
+      }
+      
+      if (type === "transcription") {
+        return `Transcription: ${data.text || 'No text'}`;
+      }
+      
+      // For outgoing calls, show phone number
+      if (data.phoneNumber) {
+        return `Phone: ${data.phoneNumber}`;
+      }
+      
+      // For other objects, show a condensed representation
+      const entries = Object.entries(data);
+      if (entries.length > 3) {
+        const mainEntries = entries.slice(0, 3);
+        return mainEntries.map(([key, value]) => `${key}: ${formatValue(value)}`).join(', ') + ` (+${entries.length - 3} more fields)`;
+      }
+      
+      return entries.map(([key, value]) => `${key}: ${formatValue(value)}`).join(', ');
+    } catch (e) {
+      return "Unknown";
     }
-    
-    if (typeof data === 'string') {
-      return data;
-    }
-    
-    // Handle different event types with specific formatting logic
-    if (data.event === 'session.update' && data.status) {
-      return `Status: ${data.status}`;
-    }
-    
-    if (data.event === 'media' && data.chunk && data.chunk.type) {
-      // Truncate large media chunks for display
-      const chunkSize = data.chunk.size || data.chunk.length || 0;
-      return `Media chunk: ${data.chunk.type}, Size: ${formatBytes(chunkSize)}`;
-    }
-    
-    if (data.event === 'transcription') {
-      return `Transcription: ${data.text || 'No text'}`;
-    }
-    
-    // For outgoing calls, show phone number
-    if (data.phoneNumber) {
-      return `Phone: ${data.phoneNumber}`;
-    }
-    
-    // For other objects, show a condensed representation
-    const entries = Object.entries(data);
-    if (entries.length > 3) {
-      const mainEntries = entries.slice(0, 3);
-      return mainEntries.map(([key, value]) => `${key}: ${formatValue(value)}`).join(', ') + ` (+${entries.length - 3} more fields)`;
-    }
-    
-    return entries.map(([key, value]) => `${key}: ${formatValue(value)}`).join(', ');
   };
 
   const formatValue = (value: any): string => {
@@ -387,7 +406,7 @@ export const RealtimeLogs = ({ logs, fullPage = false }: { logs: LogEntry[], ful
         {/* Simple preview when collapsed */}
         {!isExpanded && (
           <div className="mt-1 text-xs text-gray-600 truncate pl-6">
-            {formatData(log.data)}
+            {formatLogData(log.type, log.data)}
           </div>
         )}
 
@@ -408,7 +427,7 @@ export const RealtimeLogs = ({ logs, fullPage = false }: { logs: LogEntry[], ful
             {/* Data content */}
             <div className="bg-gray-50 p-2 rounded border text-xs overflow-x-auto">
               <pre className="whitespace-pre-wrap break-words max-h-60 overflow-y-auto">
-                {formatData(log.data, showRawData)}
+                {formatLogData(log.type, log.data)}
               </pre>
             </div>
 

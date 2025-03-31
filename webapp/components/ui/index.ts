@@ -6,3 +6,7 @@ export * from "./select";
 export * from "./textarea";
 export * from "./button";
 export * from "./label";
+export * from "./table";
+export * from "./separator";
+export * from "./toast";
+export * from "./toaster";

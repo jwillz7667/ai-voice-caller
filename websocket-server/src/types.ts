@@ -6,6 +6,20 @@ export interface Session {
   modelConn?: WebSocket;
   config?: any;
   streamSid?: string;
+  recordCall?: boolean;
+  recordingType?: string;
+  recordings?: Recording[];
+}
+
+export interface Recording {
+  sid: string;
+  status: string;
+  url: string;
+  duration?: string;
+  channels?: string;
+  source?: string;
+  callSid: string;
+  timestamp: string;
 }
 
 export interface FunctionCallItem {

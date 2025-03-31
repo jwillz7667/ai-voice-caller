@@ -37,8 +37,14 @@ const CallInterface = () => {
   const [sessionConfig, setSessionConfig] = useState({
     instructions: "You are a helpful assistant in a phone call.",
     voice: "alloy",
-    tools: []
+    tools: [],
+    recordCall: false,
+    recordingType: "record-from-answer-dual"
   });
+
+  // Add state to track recording status
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDetails, setRecordingDetails] = useState<any>(null);
 
   // Add log event handler for client-side events with enhanced verbosity
   const addLogEvent = (type: string, source: "client" | "server" | "twilio", data: any) => {
@@ -142,6 +148,27 @@ const CallInterface = () => {
       setCallStatus(data.state);
     }
 
+    // Handle recording events
+    if (data.type === "recording") {
+      addLogEvent("recording_received", "server", data);
+      
+      // Update recording status
+      setIsRecording(true);
+      setRecordingDetails(data.data);
+      
+      // Display a toast notification about the recording
+      if (typeof window !== 'undefined' && window.document) {
+        // Add a toast notification if available in the app
+        const toast = document.getElementById('toast-container');
+        if (toast) {
+          toast.innerHTML = `<div class="toast toast-success">Recording available: ${data.data.sid}</div>`;
+          setTimeout(() => { toast.innerHTML = ''; }, 5000);
+        }
+      }
+      
+      console.log("Call recording available:", data.data);
+    }
+
     // Maintain conversation items for non-session events
     if (data.type !== "session.update") {
       if (data.item) {
@@ -222,6 +249,24 @@ const CallInterface = () => {
     }
   }, []);
 
+  // Load recording preferences from localStorage when component mounts
+  useEffect(() => {
+    const savedRecordCalls = localStorage.getItem("recordCalls");
+    const savedRecordingType = localStorage.getItem("recordingType");
+    
+    const updatedConfig = { ...sessionConfig };
+    
+    if (savedRecordCalls) {
+      updatedConfig.recordCall = JSON.parse(savedRecordCalls);
+    }
+    
+    if (savedRecordingType) {
+      updatedConfig.recordingType = savedRecordingType;
+    }
+    
+    setSessionConfig(updatedConfig);
+  }, []);
+
   return (
     <div className="h-screen bg-white flex flex-col">
       <ChecklistAndConfig
@@ -239,12 +284,19 @@ const CallInterface = () => {
               callStatus={callStatus}
               onSave={(config) => {
                 setSessionConfig(config);
+                
+                // Update recording status in our state
+                setIsRecording(config.recordCall || false);
+                
                 const updateEvent = {
                   type: "session.update",
                   session: {
                     instructions: config.instructions,
                     voice: config.voice,
                     tools: config.tools,
+                    // Include recording configuration in the session update
+                    recordCall: config.recordCall,
+                    recordingType: config.recordingType,
                   },
                 };
                 console.log("Sending update event:", updateEvent);
@@ -279,7 +331,28 @@ const CallInterface = () => {
             <OutgoingCall 
               onCallInitiated={handleCallInitiated} 
               currentConfig={sessionConfig}
+              isRecording={isRecording}
+              recordingDetails={recordingDetails}
             />
+            {isRecording && recordingDetails && (
+              <div className="bg-green-50 border border-green-200 rounded-md p-3 mt-2 mb-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="relative mr-2">
+                      <div className="h-3 w-3 bg-red-500 rounded-full animate-pulse"></div>
+                    </div>
+                    <span className="font-medium text-green-800">Recording in progress</span>
+                  </div>
+                  <Button 
+                    variant="link" 
+                    size="sm"
+                    onClick={() => window.location.href = '/recordings'}
+                  >
+                    View Recordings
+                  </Button>
+                </div>
+              </div>
+            )}
             <Transcript items={items} />
           </div>
 
@@ -293,6 +366,8 @@ const CallInterface = () => {
           </div>
         </div>
       </div>
+      {/* Toast container for notifications */}
+      <div id="toast-container" className="fixed bottom-4 right-4 z-50"></div>
     </div>
   );
 };

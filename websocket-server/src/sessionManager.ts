@@ -1,16 +1,6 @@
 import { RawData, WebSocket } from "ws";
 import functions from "./functionHandlers";
-
-interface OpenAISessionConfig {
-  modalities: string[];
-  turn_detection: { type: string };
-  input_audio_format: string;
-  output_audio_format: string;
-  voice?: string;
-  instructions?: string;
-  tools?: any[];
-  recordCall?: boolean;
-}
+import { Recording } from "./types";
 
 interface Session {
   twilioConn?: WebSocket;
@@ -22,9 +12,29 @@ interface Session {
   responseStartTimestamp?: number;
   latestMediaTimestamp?: number;
   openAIApiKey?: string;
+  recordCall?: boolean;
+  recordingType?: string;
+  recordings: Recording[];
 }
 
-let session: Session = {};
+interface OpenAISessionConfig {
+  modalities: string[];
+  turn_detection: { type: string };
+  input_audio_format: string;
+  output_audio_format: string;
+  voice?: string;
+  instructions?: string;
+  tools?: any[];
+  recordCall?: boolean;
+  recordingType?: string;
+}
+
+let session: Session = {
+  recordings: []
+};
+
+// Export the session object for access from server.ts
+export { session };
 
 export function handleCallConnection(ws: WebSocket, openAIApiKey: string) {
   cleanupConnection(session.twilioConn);
@@ -42,7 +52,7 @@ export function handleCallConnection(ws: WebSocket, openAIApiKey: string) {
     session.lastAssistantItem = undefined;
     session.responseStartTimestamp = undefined;
     session.latestMediaTimestamp = undefined;
-    if (!session.frontendConn) session = {};
+    if (!session.frontendConn) session = { recordings: [] };
   });
 }
 
@@ -54,7 +64,7 @@ export function handleFrontendConnection(ws: WebSocket) {
   ws.on("close", () => {
     cleanupConnection(session.frontendConn);
     session.frontendConn = undefined;
-    if (!session.twilioConn && !session.modelConn) session = {};
+    if (!session.twilioConn && !session.modelConn) session = { recordings: [] };
   });
 }
 
@@ -92,11 +102,17 @@ function handleTwilioMessage(data: RawData) {
 
   switch (msg.event) {
     case "start":
+      console.log("Twilio 'start' event received. StreamSid:", msg.start.streamSid);
       session.streamSid = msg.start.streamSid;
       session.latestMediaTimestamp = 0;
       session.lastAssistantItem = undefined;
       session.responseStartTimestamp = undefined;
-      tryConnectModel();
+      
+      console.log("Waiting 100ms before connecting to OpenAI...");
+      setTimeout(() => {
+          console.log("Attempting to connect to OpenAI model now.");
+          tryConnectModel();
+      }, 100);
       break;
     case "media":
       session.latestMediaTimestamp = msg.media.timestamp;
@@ -213,11 +229,6 @@ function handleModelMessage(data: RawData) {
           streamSid: session.streamSid,
           media: { payload: event.delta },
         });
-
-        jsonSend(session.twilioConn, {
-          event: "mark",
-          streamSid: session.streamSid,
-        });
       } else {
         console.error("Cannot send audio: Missing Twilio connection or streamSid", {
           hasTwilioConn: !!session.twilioConn,
@@ -286,7 +297,7 @@ function handleTruncation() {
 function closeModel() {
   cleanupConnection(session.modelConn);
   session.modelConn = undefined;
-  if (!session.twilioConn && !session.frontendConn) session = {};
+  if (!session.twilioConn && !session.frontendConn) session = { recordings: [] };
 }
 
 function closeAllConnections() {
@@ -343,45 +354,12 @@ function isOpen(ws?: WebSocket): ws is WebSocket {
 }
 
 export function setSessionConfig(config: OpenAISessionConfig) {
-  if (!session.saved_config) {
-    session.saved_config = {} as OpenAISessionConfig;
-  }
-
-  // Copy all properties from config to saved_config
-  if (config.modalities) {
-    session.saved_config.modalities = config.modalities;
-  }
+  console.log("Setting session configuration:", config);
+  session.saved_config = config;
   
-  if (config.turn_detection) {
-    session.saved_config.turn_detection = config.turn_detection;
-  }
-  
-  if (config.input_audio_format) {
-    session.saved_config.input_audio_format = config.input_audio_format;
-  }
-  
-  if (config.output_audio_format) {
-    session.saved_config.output_audio_format = config.output_audio_format;
-  }
-  
-  if (config.voice) {
-    session.saved_config.voice = config.voice;
-  }
-  
-  if (config.instructions) {
-    session.saved_config.instructions = config.instructions;
-  }
-  
-  if (config.tools) {
-    session.saved_config.tools = config.tools;
-  }
-  
-  // Handle recording configuration
-  if (config.recordCall !== undefined) {
-    session.saved_config.recordCall = config.recordCall;
-  }
-  
-  console.log("Updated session configuration:", session.saved_config);
+  // Set recording configuration
+  session.recordCall = config.recordCall || false;
+  session.recordingType = config.recordingType || 'record-from-answer-dual';
   
   // If we already have an active model connection, update it with the new configuration
   if (isOpen(session.modelConn)) {
@@ -393,12 +371,59 @@ export function setSessionConfig(config: OpenAISessionConfig) {
         turn_detection: { type: "server_vad" },
         input_audio_format: "g711_ulaw_8khz", // Updated to explicitly specify 8khz
         output_audio_format: "g711_ulaw_8khz", // Updated to explicitly specify 8khz
-        voice: session.saved_config.voice || "ash",
-        ...(session.saved_config.instructions && { instructions: session.saved_config.instructions }),
-        ...(session.saved_config.tools && Array.isArray(session.saved_config.tools) && session.saved_config.tools.length > 0 && { tools: session.saved_config.tools }),
+        voice: config.voice || "ash",
+        ...(config.instructions && { instructions: config.instructions }),
+        ...(config.tools && Array.isArray(config.tools) && config.tools.length > 0 && { tools: config.tools }),
       },
     });
   }
   
   return true;
+}
+
+// Add a function to store recording information
+export function addRecording(recordingData: any) {
+  if (!session.recordings) {
+    session.recordings = [];
+  }
+  
+  const recording: Recording = {
+    sid: recordingData.RecordingSid,
+    status: recordingData.RecordingStatus,
+    url: recordingData.RecordingUrl,
+    duration: recordingData.RecordingDuration,
+    channels: recordingData.RecordingChannels === '2' ? 'dual' : 'mono',
+    callSid: recordingData.CallSid,
+    timestamp: new Date().toISOString()
+  };
+  
+  // Add the recording to our records
+  session.recordings.push(recording);
+  
+  // Return the recording in case it's needed
+  return recording;
+}
+
+// Add a function to get all recordings
+export function getRecordings(): Recording[] {
+  return session.recordings || [];
+}
+
+// Add a function to delete a recording
+export function deleteRecording(sid: string): boolean {
+  if (!session.recordings) return false;
+  
+  const initialLength = session.recordings.length;
+  session.recordings = session.recordings.filter(r => r.sid !== sid);
+  
+  return initialLength !== session.recordings.length;
+}
+
+// New function to broadcast messages to the frontend
+export function broadcastToFrontend(message: any) {
+  if (isOpen(session.frontendConn)) {
+    jsonSend(session.frontendConn, message);
+    return true;
+  }
+  return false;
 }

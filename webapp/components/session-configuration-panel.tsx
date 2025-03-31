@@ -32,6 +32,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   const [voice, setVoice] = useState("ash");
   const [tools, setTools] = useState<string[]>([]);
   const [recordCall, setRecordCall] = useState(false);
+  const [recordingType, setRecordingType] = useState("record-from-answer-dual");
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingSchemaStr, setEditingSchemaStr] = useState("");
   const [isJsonValid, setIsJsonValid] = useState(true);
@@ -48,7 +49,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   // Track changes to determine if there are unsaved modifications
   useEffect(() => {
     setHasUnsavedChanges(true);
-  }, [instructions, voice, tools, recordCall]);
+  }, [instructions, voice, tools, recordCall, recordingType]);
 
   // Reset save status after a delay when saved
   useEffect(() => {
@@ -60,14 +61,33 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
     }
   }, [saveStatus]);
 
+  // Load recording preferences from localStorage when component mounts
+  useEffect(() => {
+    const savedRecordCalls = localStorage.getItem("recordCalls");
+    const savedRecordingType = localStorage.getItem("recordingType");
+    
+    if (savedRecordCalls) {
+      setRecordCall(JSON.parse(savedRecordCalls));
+    }
+    
+    if (savedRecordingType) {
+      setRecordingType(savedRecordingType);
+    }
+  }, []);
+
   const handleSave = async () => {
     setSaveStatus("saving");
     try {
+      // Save recording preferences to localStorage
+      localStorage.setItem("recordCalls", JSON.stringify(recordCall));
+      localStorage.setItem("recordingType", recordingType);
+      
       await onSave({
         instructions,
         voice,
         tools: tools.map((tool) => JSON.parse(tool)),
         recordCall,
+        recordingType,
       });
       setSaveStatus("saved");
       setHasUnsavedChanges(false);
@@ -216,6 +236,26 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
                 Record Call
               </Label>
             </div>
+
+            {recordCall && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none">Recording Type</label>
+                <Select value={recordingType} onValueChange={setRecordingType}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select recording type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="record-from-answer-dual">Dual Channel (from answer)</SelectItem>
+                    <SelectItem value="record-from-ringing-dual">Dual Channel (from ringing)</SelectItem>
+                    <SelectItem value="record-from-answer">Mono (from answer)</SelectItem>
+                    <SelectItem value="record-from-ringing">Mono (from ringing)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Dual channel recordings separate caller and callee into different audio channels.
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <label className="text-sm font-medium leading-none">Tools</label>
