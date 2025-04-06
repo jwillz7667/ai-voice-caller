@@ -10,6 +10,7 @@ import { BackendTag } from "@/components/backend-tag";
 
 interface OutgoingCallProps {
   onCallInitiated?: (phoneNumber: string, details?: any) => void;
+  onCallSuccess?: (callSid: string) => void;
   currentConfig?: any; 
   isRecording?: boolean;
   recordingDetails?: any;
@@ -17,6 +18,7 @@ interface OutgoingCallProps {
 
 export default function OutgoingCall({ 
   onCallInitiated, 
+  onCallSuccess,
   currentConfig, 
   isRecording = false,
   recordingDetails = null 
@@ -57,6 +59,11 @@ export default function OutgoingCall({
       
       if (!response.ok) {
         throw new Error(result.message || "Failed to initiate call");
+      }
+      
+      // Call the success callback with the SID
+      if (onCallSuccess) {
+        onCallSuccess(result.callSid);
       }
       
       // Add detailed success logging

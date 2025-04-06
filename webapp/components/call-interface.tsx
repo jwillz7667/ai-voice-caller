@@ -25,6 +25,7 @@ const CallInterface = () => {
   const [allConfigsReady, setAllConfigsReady] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
   const [callStatus, setCallStatus] = useState("disconnected");
+  const [callSid, setCallSid] = useState<string | null>(null);
   const [realtimeLogs, setRealtimeLogs] = useState<
     {
       timestamp: string;
@@ -115,18 +116,32 @@ const CallInterface = () => {
 
   // Handle initiating an outgoing call
   const handleCallInitiated = (phoneNumber: string, details?: any) => {
-    // Determine the event type based on the provided parameters
-    const eventType = details ? 
-      (details.error ? 'outgoing_call_error' : 'outgoing_call_success') : 
-      'outgoing_call_initiated';
-    
-    // Create the log data
-    const logData = details || { 
-      phoneNumber, 
+    const eventType =
+      details
+        ? details.error
+          ? "outgoing_call_error"
+          : "outgoing_call_success"
+        : "outgoing_call_initiated";
+
+    const logData = details || {
+      phoneNumber,
       config: sessionConfig,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
-    
+
+    // If successful call initiation, store the callSid
+    if (eventType === "outgoing_call_success" && details?.callSid) {
+      setCallSid(details.callSid);
+    }
+
+    // Clear callSid on error or if initiating a new call without details
+    if (
+      eventType === "outgoing_call_error" ||
+      eventType === "outgoing_call_initiated"
+    ) {
+      setCallSid(null);
+    }
+
     addLogEvent(eventType, "client", logData);
   };
 
@@ -328,8 +343,9 @@ const CallInterface = () => {
               allConfigsReady={allConfigsReady}
               setAllConfigsReady={setAllConfigsReady}
             />
-            <OutgoingCall 
-              onCallInitiated={handleCallInitiated} 
+            <OutgoingCall
+              onCallInitiated={handleCallInitiated}
+              onCallSuccess={setCallSid}
               currentConfig={sessionConfig}
               isRecording={isRecording}
               recordingDetails={recordingDetails}
@@ -353,15 +369,18 @@ const CallInterface = () => {
                 </div>
               </div>
             )}
-            <Transcript items={items} />
+            <div className="flex-1 overflow-hidden">
+              <Transcript items={items} />
+            </div>
           </div>
 
           {/* Right Column: Function Calls */}
           <div className="col-span-3 flex flex-col h-full overflow-hidden">
-            <FunctionCallsPanel 
-              items={items} 
-              ws={ws} 
-              sendMessage={sendMessage} 
+            <FunctionCallsPanel
+              items={items}
+              ws={ws}
+              sendMessage={sendMessage}
+              callSid={callSid}
             />
           </div>
         </div>

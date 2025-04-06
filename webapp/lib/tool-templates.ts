@@ -62,4 +62,18 @@ export const toolTemplates = [
       },
     },
   },
+  {
+    name: "send_dtmf",
+    description: "Sends DTMF (keypad) tones during an active phone call. Use this when the conversation requires pressing numbers on a keypad, for example, to navigate an IVR menu (e.g., 'press 1 for sales').",
+    parameters: {
+      type: "object",
+      properties: {
+        digits: {
+          type: "string",
+          description: "The sequence of digits to send. Allowed characters are 0-9, *, #. Use 'w' for a 0.5-second pause between digits if needed (e.g., '12w3')."
+        }
+      },
+      required: ["digits"]
+    }
+  }
 ];

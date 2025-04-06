@@ -27,10 +27,25 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   onSave,
 }) => {
   const [instructions, setInstructions] = useState(
-    "You are a helpful assistant in a phone call."
+    `You are a helpful assistant managing a phone call. Your primary goal is to assist the user based on the real-time transcript of the call.
+Listen carefully to the conversation.
+
+**Tool Usage:**
+- If the other party on the call asks you to press a number on the keypad (e.g., 'Press 1 for support', 'Enter your account number followed by hash', 'Please dial extension 123'), you MUST use the 'send_dtmf' function if it is available in your tools list.
+- Provide only the required digits (0-9, *, #, w) in the 'digits' parameter. Do not include explanatory text in the digits string.
+- For example, if they say 'Press 2 now', call send_dtmf with digits: '2'.
+- If they say 'Enter your 5-digit code then press pound', and you know the code is 98765, call send_dtmf with digits: '98765#'.
+- Use 'w' for a half-second pause if needed, for example, '1w2w3'.
+
+Respond naturally based on the conversation flow when not using tools.`
   );
   const [voice, setVoice] = useState("ash");
-  const [tools, setTools] = useState<string[]>([]);
+  const [tools, setTools] = useState<string[]>(() => {
+    // Example: Load saved tools from localStorage if desired
+    // const savedTools = localStorage.getItem("savedTools");
+    // return savedTools ? JSON.parse(savedTools) : [];
+    return []; // Start with no tools by default
+  });
   const [recordCall, setRecordCall] = useState(false);
   const [recordingType, setRecordingType] = useState("record-from-answer-dual");
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
