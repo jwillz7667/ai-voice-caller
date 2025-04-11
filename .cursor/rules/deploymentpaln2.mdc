@@ -1,0 +1,286 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Your rule content
+
+# Production-Ready Deployment Plan: Webapp & WebSocket Server (Self-Hosted)
+# VERSION 2: With Supabase DB, User Profiles, and Stripe Credits
+
+This plan details the steps for deploying the `webapp` and `websocket-server` to a production environment on self-managed infrastructure (e.g., Linux VPS) using a custom domain. It includes user profile management via Supabase (Postgres) and a Stripe-based credit system.
+
+## Phase 1: Infrastructure Provisioning and Hardening
+  
+*   *(Steps 1-5 remain identical to the previous plan: Provider Selection, User Setup, Core Dependencies Install (git, nginx, curl, fail2ban, certbot, ufw, nvm), Security Hardening (SSH, ufw, fail2ban), Directory Structure Setup)*
+
+## Phase 2: Application Code Preparation & Configuration
+
+1.  **Supabase Project Setup**:
+    *   Sign up/log in at [supabase.com](mdc:https:/supabase.com).
+    *   Create a new project, choose a region close to your server/users.
+    *   Securely store the generated **Project URL** and **`anon` public key** and **`service_role` secret key**. The `service_role` key bypasses Row Level Security (RLS) and should *only* be used on the backend (`websocket-server`) and kept highly confidential. The `anon` key can be used on the frontend if needed (e.g., for Supabase Auth UI), but backend operations interacting with sensitive data or performing administrative tasks should use the `service_role` key.
+    *   Navigate to the "SQL Editor" in your Supabase project dashboard.
+2.  **Database Schema Definition (Execute in Supabase SQL Editor)**:
+    ```sql
+    -- 1. Profiles Table (Linked to Supabase Auth users)
+    CREATE TABLE public.profiles (
+      id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE, -- Links to auth user
+      email TEXT UNIQUE, -- Can store email for easier reference
+      credits INTEGER DEFAULT 0 NOT NULL CHECK (credits >= 0), -- User's credit balance
+      stripe_customer_id TEXT UNIQUE, -- Store Stripe Customer ID
+      updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+    );
+    
+    -- Helper function to automatically create a profile when a new user signs up in Supabase Auth
+    CREATE OR REPLACE FUNCTION public.handle_new_user()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      INSERT INTO public.profiles (id, email)
+      VALUES (new.id, new.email);
+      RETURN new;
+    END;
+    $$ LANGUAGE plpgsql SECURITY DEFINER; -- SECURITY DEFINER is important here
+
+    -- Trigger to call the function after a new user is created in auth.users
+    CREATE TRIGGER on_auth_user_created
+      AFTER INSERT ON auth.users
+      FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+    -- Enable Row Level Security (RLS) on profiles table (recommended)
+    ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+    -- Policies for profiles table (examples - adjust as needed)
+    -- Users can view their own profile
+    CREATE POLICY "Users can view their own profile" ON public.profiles
+      FOR SELECT USING (auth.uid() = id);
+    -- Users can update their own profile (e.g., maybe not credits directly)
+    -- CREATE POLICY "Users can update their own profile" ON public.profiles
+    --   FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+    -- Service role (backend) bypasses RLS, needed for updating credits securely
+
+    -- 2. Credit Transactions Table
+    CREATE TABLE public.credit_transactions (
+        id BIGSERIAL PRIMARY KEY,
+        user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+        stripe_charge_id TEXT UNIQUE, -- Optional: Link to Stripe Charge ID
+        stripe_checkout_session_id TEXT UNIQUE NOT NULL, -- Link to Stripe Checkout Session
+        amount_paid_cents INTEGER NOT NULL, -- Amount paid (e.g., in cents)
+        credits_purchased INTEGER NOT NULL CHECK (credits_purchased > 0),
+        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+    );
+
+    -- Enable RLS for transactions (optional, depends on access needs)
+    ALTER TABLE public.credit_transactions ENABLE ROW LEVEL SECURITY;
+
+    -- Policy: Users can view their own transactions
+    CREATE POLICY "Users can view their own transactions" ON public.credit_transactions
+        FOR SELECT USING (auth.uid() = user_id);
+    -- Backend (service_role) will handle inserts.
+    
+    -- 3. Optional: Function to securely add credits (handles race conditions)
+    -- This function should be called by your backend after verifying a Stripe payment
+    CREATE OR REPLACE FUNCTION public.add_user_credits(
+        target_user_id UUID,
+        credits_to_add INTEGER
+    ) RETURNS INTEGER AS $$
+    DECLARE
+        new_credit_balance INTEGER;
+    BEGIN
+        IF credits_to_add <= 0 THEN
+            RAISE EXCEPTION 'credits_to_add must be positive';
+        END IF;
+
+        UPDATE public.profiles
+        SET credits = credits + credits_to_add
+        WHERE id = target_user_id
+        RETURNING credits INTO new_credit_balance;
+
+        RETURN new_credit_balance;
+    END;
+    $$ LANGUAGE plpgsql VOLATILE SECURITY DEFINER; -- Ensure it runs with definer's permissions
+
+    GRANT EXECUTE ON FUNCTION public.add_user_credits(UUID, INTEGER) TO service_role;
+
+    ```
+3.  **Code Deployment (Git)**:
+    *   As `deploy_user`, clone/pull the project repository into `/srv/www/yourdomain.com/app`.
+4.  **Backend (`websocket-server`) Configuration**:
+    *   **Dependencies**:
+        ```bash
+        cd /srv/www/yourdomain.com/app/websocket-server
+        # Add Supabase & Stripe clients
+        npm install @supabase/supabase-js stripe
+        # Install production dependencies
+        npm install --production
+        ```
+    *   **Build (if TypeScript)**: `npm run build`
+    *   **Environment Variables (CRITICAL - Managed via PM2 Ecosystem file)**:
+        *   `NODE_ENV=production`
+        *   `PORT=8080`
+        *   `ALLOWED_ORIGIN=https://yourdomain.com`
+        *   `SUPABASE_URL=your_supabase_project_url`
+        *   `SUPABASE_SERVICE_KEY=your_supabase_service_role_key` (Keep SECRET)
+        *   `STRIPE_SECRET_KEY=sk_live_your_stripe_secret_key` (Keep SECRET)
+        *   `STRIPE_PUBLISHABLE_KEY=pk_live_your_stripe_publishable_key` (Okay to be public)
+        *   `STRIPE_WEBHOOK_SECRET=whsec_your_stripe_webhook_signing_secret` (Keep SECRET)
+        *   `CREDIT_COST_PER_CALL=1` (Example: Cost per action)
+    *   **Initialize Clients (Conceptual)**:
+        ```typescript
+        // e.g., in src/lib/supabaseClient.ts
+        import { createClient } from '@supabase/supabase-js';
+
+        const supabaseUrl = process.env.SUPABASE_URL;
+        const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+
+        if (!supabaseUrl || !supabaseKey) {
+          throw new Error('Supabase URL and Service Key must be provided.');
+        }
+        // Use service_role key for backend operations
+        export const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+
+        // e.g., in src/lib/stripeClient.ts
+        import Stripe from 'stripe';
+
+        const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+        if (!stripeSecretKey) {
+          throw new Error('Stripe Secret Key must be provided.');
+        }
+        export const stripe = new Stripe(stripeSecretKey, { apiVersion: '2024-04-10' });
+        ```
+    *   **API Endpoints (Express Routes)**:
+        *   `POST /api/create-checkout-session`:
+            *   Requires authentication (e.g., validates Supabase JWT).
+            *   Gets user ID from token.
+            *   Creates a Stripe Checkout Session (`stripe.checkout.sessions.create`).
+            *   Include `client_reference_id: userId` and `metadata: { userId: userId }` for linking back.
+            *   Return `sessionId` or redirect URL to frontend.
+        *   `POST /api/stripe-webhook`:
+            *   **Verify Signature**: Use `stripe.webhooks.constructEvent` with `STRIPE_WEBHOOK_SECRET`.
+            *   Handle `checkout.session.completed` event:
+                *   Retrieve session details (`event.data.object`).
+                *   Extract `userId` from `client_reference_id` or `metadata`.
+                *   Extract payment details (amount paid).
+                *   Calculate `credits_purchased`.
+                *   **Atomically** insert into `credit_transactions` and update `profiles.credits` (use the `add_user_credits` Postgres function via `supabaseAdmin.rpc(...)`). Ensure idempotency using the `stripe_checkout_session_id`.
+            *   Handle other events as needed (e.g., `payment_intent.succeeded`, `customer.created`).
+            *   Return `200 OK` quickly to Stripe.
+        *   `GET /api/profile`: (Example)
+            *   Requires authentication.
+            *   Gets user ID.
+            *   Fetches profile (including credits) from Supabase `profiles` table.
+            *   Return profile data.
+    *   **WebSocket Logic Modifications**:
+        *   On connection, authenticate the user (e.g., using JWT passed during handshake).
+        *   Before processing a credit-consuming action:
+            *   Get user ID.
+            *   Fetch current credits from `profiles` table.
+            *   Check if `credits >= CREDIT_COST_PER_CALL`.
+            *   If sufficient, **decrement** credits in `profiles` table (`UPDATE profiles SET credits = credits - :cost WHERE id = :userId AND credits >= :cost`).
+            *   If insufficient, send error message back to client.
+            *   Proceed with action only if credits were successfully decremented.
+5.  **Frontend (`webapp`) Configuration**:
+    *   **Dependencies**:
+        ```bash
+        cd /srv/www/yourdomain.com/app/webapp
+        # Add Stripe.js client
+        npm install @stripe/stripe-js
+        npm install --production
+        ```
+    *   **Build with Production Endpoints**:
+        ```bash
+        # Set build-time variables
+        export REACT_APP_WEBSOCKET_URL="wss://yourdomain.com/ws"
+        export REACT_APP_STRIPE_PUBLISHABLE_KEY="pk_live_your_stripe_publishable_key" # Pass public key
+        export REACT_APP_API_BASE_URL="https://yourdomain.com" # Base URL for API calls
+        npm run build
+        ```
+    *   **UI Implementation**:
+        *   Display user's credit balance (fetched from `/api/profile`).
+        *   "Buy Credits" button/section.
+        *   On click:
+            *   Call backend `/api/create-checkout-session`.
+            *   Use `@stripe/stripe-js` and the received session ID to redirect to Stripe Checkout (`redirectToCheckout({ sessionId: ... })`).
+        *   Handle Stripe success/cancel redirects (configure URLs in Stripe Session creation).
+    *   **Copy Build Output**: `cp -a /srv/www/yourdomain.com/app/webapp/build/. /srv/www/yourdomain.com/public_html/`
+
+## Phase 3: Nginx Configuration
+
+1.  **Modify Nginx Server Block** (`/etc/nginx/sites-available/yourdomain.com.conf`):
+    *   Add a location block to proxy API requests to the backend:
+        ```nginx
+        # Inside the main server { listen 443 ... } block
+
+        # API Reverse Proxy (forwarding to the same backend as WebSocket)
+        location /api {
+            proxy_pass http://websocket_backend; # Use the defined upstream
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            # Add other necessary headers like Authorization if needed, carefully
+            # proxy_set_header Authorization $http_authorization; # If passing JWT directly
+            # proxy_pass_header Authorization;
+        }
+        ```
+    *   Ensure the `/ws` location block remains as previously defined.
+2.  **Test and Reload Nginx**: `sudo nginx -t && sudo systemctl reload nginx`
+
+## Phase 4: Process Management & Application Startup
+
+1.  **Update PM2 Ecosystem File** (`/srv/www/yourdomain.com/app/websocket-server/ecosystem.config.js`):
+    *   Add the new required environment variables (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `CREDIT_COST_PER_CALL`) to the `env` section.
+    ```javascript
+    // ecosystem.config.js (additions)
+    module.exports = {
+      apps : [{
+        // ... other settings ...
+        env: {
+          "NODE_ENV": "production",
+          "PORT": 8080,
+          "ALLOWED_ORIGIN": "https://yourdomain.com",
+          "SUPABASE_URL": "your_supabase_project_url", // Load from actual env or secrets manager ideally
+          "SUPABASE_SERVICE_KEY": "your_supabase_service_role_key", // Load securely!
+          "STRIPE_SECRET_KEY": "sk_live_your_stripe_secret_key", // Load securely!
+          "STRIPE_PUBLISHABLE_KEY": "pk_live_your_stripe_publishable_key",
+          "STRIPE_WEBHOOK_SECRET": "whsec_your_stripe_webhook_signing_secret", // Load securely!
+          "CREDIT_COST_PER_CALL": "1"
+        },
+        // ... rest of settings ...
+      }]
+    }
+    // NOTE: Storing secrets directly in this file is convenient but less secure.
+    // Consider loading them from actual system environment variables set outside PM2,
+    // or using a proper secrets management solution in a real-world high-security scenario.
+    ```
+2.  **Restart Application**:
+    *   Navigate to the directory.
+    *   `pm2 restart ecosystem.config.js` (or `pm2 start` if first time)
+    *   `pm2 save`
+
+## Phase 5: DNS Configuration
+
+*   *(No changes from the previous plan)*
+
+## Phase 6: Deployment Workflow (Updates)
+
+*   The workflow remains largely the same, but ensure:
+    *   New dependencies (`@supabase/supabase-js`, `stripe`, `@stripe/stripe-js`) are installed during the `npm install` steps for both backend and frontend.
+    *   The frontend build step correctly includes the `REACT_APP_STRIPE_PUBLISHABLE_KEY` environment variable.
+    *   The backend restart (`pm2 reload`) correctly picks up any changes in the `ecosystem.config.js` environment variables (if modified).
+
+## Phase 7: Ongoing Maintenance & Monitoring
+
+*   *(Largely unchanged, but add)*
+*   **Monitor Supabase Usage**: Keep an eye on your Supabase project's resource usage (Database size, API calls, egress) within their dashboard to stay within free tier limits or plan for upgrades.
+*   **Monitor Stripe**: Check Stripe dashboard for payment statuses, disputes, and webhook delivery success rates.
+*   **Database Backups**: Supabase handles basic backups, but review their policies and consider additional backup strategies if data is critical.
+
+**Stripe Configuration Notes**:
+
+*   Create Stripe Product(s) for your credits (e.g., "100 Credits", "500 Credits").
+*   Configure the Stripe Webhook endpoint in your Stripe dashboard, pointing to `https://yourdomain.com/api/stripe-webhook` and subscribing *only* to the events you handle (e.g., `checkout.session.completed`).
+*   Ensure you are using Live Mode keys/webhooks for production.
+
+This updated plan integrates Supabase for user data and credits, and Stripe for payments, providing a more complete application foundation. Remember to handle secrets securely and test the payment and credit logic thoroughly.

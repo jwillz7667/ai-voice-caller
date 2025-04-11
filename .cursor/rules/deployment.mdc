@@ -1,0 +1,366 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+
+# Your rule content
+# Production-Ready Deployment Plan: Webapp & WebSocket Server (Self-Hosted)
+
+This plan details the steps for deploying the `webapp` and `websocket-server` to a production environment on self-managed infrastructure (e.g., Linux VPS) using a custom domain, adhering to professional standards for security, reliability, and maintainability.
+
+## Phase 1: Infrastructure Provisioning and Hardening
+
+1.  **Select Provider & Provision Server**:
+    *   Choose a reputable VPS provider (e.g., DigitalOcean, Linode, Vultr, Hetzner).
+    *   Provision a server instance with a recent LTS Linux distribution (e.g., Ubuntu 22.04 LTS). Choose resources (CPU, RAM, Disk) based on expected load.
+2.  **Initial Server Access & User Setup**:
+    *   Connect via SSH using the provider-supplied root credentials.
+    *   Create a dedicated deployment user:
+        ```bash
+        adduser deploy_user # Follow prompts
+        usermod -aG sudo deploy_user
+        rsync --archive --chown=deploy_user:deploy_user ~/.ssh /home/deploy_user
+        ```
+    *   Log in as `deploy_user` (`su - deploy_user` or new SSH session).
+3.  **System Updates & Core Dependencies**:
+    *   Update system packages:
+        ```bash
+        sudo apt update && sudo apt upgrade -y
+        ```
+    *   Install essential tools:
+        ```bash
+        sudo apt install -y git nginx curl fail2ban python3-certbot-nginx ufw
+        ```
+    *   Install Node.js using `nvm` (as `deploy_user`):
+        ```bash
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+        # Reload shell: source ~/.bashrc or source ~/.zshrc or new terminal
+        nvm install --lts # Install latest LTS Node.js
+        nvm alias default lts # Set LTS as default
+        nvm use default
+        # Verify: node -v && npm -v
+        # Install Yarn globally if preferred: npm install -g yarn
+        ```
+4.  **Security Hardening**:
+    *   **SSH Hardening**:
+        *   Edit `sudo nano /etc/ssh/sshd_config`:
+            *   Set `PermitRootLogin no`
+            *   Set `PasswordAuthentication no`
+            *   Ensure `PubkeyAuthentication yes`
+            *   Consider changing the default `Port 22` to a non-standard port (update firewall accordingly).
+        *   Restart SSH service: `sudo systemctl restart sshd`
+    *   **Firewall Configuration (`ufw`)**:
+        ```bash
+        sudo ufw allow OpenSSH # Or your custom SSH port
+        sudo ufw allow 'Nginx Full' # Allows HTTP/80 and HTTPS/443
+        sudo ufw default deny incoming
+        sudo ufw default allow outgoing
+        sudo ufw enable # Verify rules before enabling
+        sudo ufw status verbose
+        ```
+    *   **Fail2Ban Configuration**:
+        *   Default configuration provides SSH protection. Review `/etc/fail2ban/jail.local` (create if needed from `.conf`) for customization (bantime, findtime, maxretry).
+        *   Enable and start: `sudo systemctl enable fail2ban && sudo systemctl start fail2ban`
+        *   Check status: `sudo systemctl status fail2ban` or `sudo fail2ban-client status sshd`
+5.  **Directory Structure Setup**:
+    *   Create standard directories for web content and application code:
+        ```bash
+        sudo mkdir -p /srv/www/yourdomain.com/app
+        sudo mkdir -p /srv/www/yourdomain.com/public_html
+        sudo chown -R deploy_user:deploy_user /srv/www/yourdomain.com
+        ```
+    *   `/srv/www/yourdomain.com/app`: Will contain `websocket-server` and `webapp` source code.
+    *   `/srv/www/yourdomain.com/public_html`: Nginx root, will contain `webapp` build output.
+
+## Phase 2: Application Code Preparation & Configuration
+
+1.  **Code Deployment**:
+    *   As `deploy_user`, clone the project repository into the application directory:
+        ```bash
+        cd /srv/www/yourdomain.com/app
+        git clone your_repository_url . # Clone into current dir
+        ```
+2.  **Backend (`websocket-server`) Configuration**:
+    *   **Dependencies**:
+        ```bash
+        cd /srv/www/yourdomain.com/app/websocket-server
+        npm install --production # Install only production dependencies
+        ```
+    *   **Build (if TypeScript)**:
+        ```bash
+        npm run build # Ensure package.json has a 'build' script using 'tsc'
+        ```
+    *   **Environment Variables (Critical)**:
+        *   **DO NOT use `.env` files in production.**
+        *   Configuration MUST be provided via environment variables managed by the process manager (PM2).
+        *   Required Variables: `NODE_ENV=production`, `PORT` (e.g., `8080`), `ALLOWED_ORIGIN=https://yourdomain.com`. Add others as needed (e.g., `DATABASE_URL`).
+    *   **Origin Check Refinement**: Ensure the WebSocket origin check robustly handles proxying by using headers Nginx provides:
+        ```typescript
+        // websocket-server/src/server.ts (inside wss.on('connection', ...))
+        const protocol = req.headers['x-forwarded-proto'] || 'http'; // Get protocol from Nginx header
+        const host = req.headers['host']; // Get host from Nginx header
+        const clientOrigin = req.headers['origin']; // Browser-sent origin
+        const expectedOrigin = process.env.ALLOWED_ORIGIN; // e.g., https://yourdomain.com
+
+        let isOriginAllowed = false;
+        if (expectedOrigin && clientOrigin === expectedOrigin) {
+           isOriginAllowed = true;
+        } else if (expectedOrigin && !clientOrigin && protocol && host) {
+            // Fallback check if browser doesn't send Origin but Nginx forwards proto/host
+            // Construct the likely origin based on proxy headers
+            const constructedOrigin = `${protocol}://${host}`;
+            if (constructedOrigin === expectedOrigin) {
+                isOriginAllowed = true;
+            }
+        } else if (!expectedOrigin) {
+            console.warn("ALLOW_ORIGIN not set, allowing connection from:", clientOrigin || "unknown origin");
+            isOriginAllowed = true; // Allow if not configured (less secure)
+        }
+
+
+        if (!isOriginAllowed) {
+            console.warn(`WebSocket connection blocked. Client Origin: "${clientOrigin}", Expected: "${expectedOrigin}", Proto: "${protocol}", Host: "${host}"`);
+            ws.close(1008, 'Invalid origin');
+            return;
+        }
+        // ... rest of connection logic
+        ```
+    *   **Structured Logging**: Implement JSON logging for easier parsing (using libraries like `winston` or `pino` is recommended).
+3.  **Frontend (`webapp`) Configuration**:
+    *   **Dependencies**:
+        ```bash
+        cd /srv/www/yourdomain.com/app/webapp
+        npm install --production
+        ```
+    *   **Build with Production Endpoint**:
+        *   Set the *build-time* environment variable for the WebSocket URL before running the build.
+        *   The variable name depends on your framework (`REACT_APP_...`, `VITE_...`, `NEXT_PUBLIC_...`).
+        ```bash
+        # Example for Create React App
+        export REACT_APP_WEBSOCKET_URL="wss://yourdomain.com/ws"
+        npm run build # Generates output in 'build' dir
+
+        # Example for Vite
+        # export VITE_WEBSOCKET_URL="wss://yourdomain.com/ws"
+        # npm run build # Generates output in 'dist' dir
+
+        # Example for Next.js
+        # export NEXT_PUBLIC_WEBSOCKET_URL="wss://yourdomain.com/ws"
+        # npm run build # Generates output in '.next' dir (adjust Nginx root accordingly if using standalone export)
+        ```
+    *   **Copy Build Output to Nginx Root**:
+        ```bash
+        # Adjust source ('build', 'dist') and target as needed
+        cp -a /srv/www/yourdomain.com/app/webapp/build/. /srv/www/yourdomain.com/public_html/
+        ```
+
+## Phase 3: Nginx Configuration
+
+1.  **Create Nginx Server Block**: `sudo nano /etc/nginx/sites-available/yourdomain.com.conf`
+2.  **Configure Server Block**:
+    ```nginx
+    # Define upstream for backend application for cleaner config
+    upstream websocket_backend {
+        server 127.0.0.1:8080; # Match the PORT your Node.js app listens on
+        # Add more backend servers here for load balancing if needed
+    }
+
+    # Redirect HTTP to HTTPS and www to non-www (or vice-versa)
+    server {
+        listen 80;
+        listen [::]:80;
+        server_name yourdomain.com www.yourdomain.com;
+
+        # Let's Encrypt Challenge Handling
+        location /.well-known/acme-challenge/ {
+            root /var/www/html; # Standard Certbot directory
+            allow all;
+        }
+        location / {
+            return 301 https://yourdomain.com$request_uri; # Force non-www HTTPS
+            # Or use: return 301 https://www.$host$request_uri; # Force www HTTPS
+            # Or use: return 301 https://$host$request_uri; # Keep www/non-www as requested
+        }
+    }
+
+    # Optional: Redirect www to non-www for HTTPS (if desired)
+    # server {
+    #     listen 443 ssl http2;
+    #     listen [::]:443 ssl http2;
+    #     server_name www.yourdomain.com;
+    #
+    #     # SSL Cert paths (Certbot manages these)
+    #     ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    #     ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+    #     include /etc/letsencrypt/options-ssl-nginx.conf;
+    #     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+    #
+    #     return 301 https://yourdomain.com$request_uri;
+    # }
+
+    server {
+        listen 443 ssl http2 default_server; # Add default_server if this is the main/only site
+        listen [::]:443 ssl http2 default_server; # IPv6
+        server_name yourdomain.com; # Primary domain (non-www in this example)
+
+        # Nginx Root for Frontend Static Files
+        root /srv/www/yourdomain.com/public_html; # <<< VERIFY THIS PATH
+        index index.html index.htm;
+
+        # SSL Configuration (Managed by Certbot)
+        ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+        include /etc/letsencrypt/options-ssl-nginx.conf; # Contains strong TLS settings from Certbot
+        ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # Diffie-Hellman parameters from Certbot
+
+        # Security Headers
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always; # HSTS
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        # add_header Content-Security-Policy "default-src 'self'; script-src 'self'; connect-src 'self' wss://yourdomain.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';" always; # Start strict, then tune CSP!
+
+        # Logging Format (More informative)
+        log_format production '$remote_addr - $remote_user [$time_local] "$request" '
+                           '$status $body_bytes_sent "$http_referer" '
+                           '"$http_user_agent" "$http_x_forwarded_for"';
+        access_log /var/log/nginx/yourdomain.com.access.log production;
+        error_log /var/log/nginx/yourdomain.com.error.log warn;
+
+        # Serve Static Assets with Caching Headers
+        location ~* \.(?:css|js|jpg|jpeg|gif|png|ico|svg|woff|woff2)$ {
+            expires 1M; # Cache static assets for 1 month
+            access_log off;
+            add_header Cache-Control "public";
+        }
+
+        # Handle Frontend SPA Routing
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        # WebSocket Reverse Proxy
+        location /ws { # <<< Match frontend WS URL path
+            proxy_pass http://websocket_backend; # Use the upstream block
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_cache_bypass $http_upgrade; # Ensure WS isn't cached
+
+            # Forward client IP and protocol for backend use (origin checks, logging)
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 86400s; # Keep WS connections open
+            proxy_send_timeout 86400s;
+        }
+
+        # Optional: API Proxy (if backend serves HTTP API on different paths)
+        # location /api {
+        #     proxy_pass http://websocket_backend;
+        #     # Add relevant proxy headers as in /ws location if needed
+        # }
+
+        # Deny access to hidden files
+        location ~ /\. {
+            deny all;
+        }
+    }
+    ```
+3.  **Enable Site & Obtain SSL**:
+    *   Disable default Nginx site: `sudo rm /etc/nginx/sites-enabled/default` (if exists)
+    *   Enable your site: `sudo ln -s /etc/nginx/sites-available/yourdomain.com.conf /etc/nginx/sites-enabled/`
+    *   Test Nginx config: `sudo nginx -t` (Fix any errors)
+    *   Reload Nginx: `sudo systemctl reload nginx`
+    *   Run Certbot: `sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com --agree-tos --email your_email@example.com --no-eff-email` (Adjust domains, use `--staging` for testing)
+    *   Verify Certbot's changes and auto-renewal: `sudo systemctl status certbot.timer`, `sudo certbot renew --dry-run`
+    *   Final Nginx test & reload: `sudo nginx -t && sudo systemctl reload nginx`
+
+## Phase 4: Process Management & Application Startup
+
+1.  **Install PM2**:
+    ```bash
+    sudo npm install -g pm2
+    # Allow PM2 to work with systemd
+    sudo env PATH=$PATH:/home/deploy_user/.nvm/versions/node/$(nvm current)/bin pm2 startup systemd -u deploy_user --hp /home/deploy_user
+    ```
+    (Run the command output by `pm2 startup` using `sudo`)
+2.  **Create PM2 Ecosystem File**:
+    *   In `/srv/www/yourdomain.com/app/websocket-server`, create `ecosystem.config.js`:
+    ```javascript
+    // ecosystem.config.js
+    module.exports = {
+      apps : [{
+        name   : "websocket-app",
+        script : "./dist/server.js", // Path to your compiled entry point
+        cwd    : "/srv/www/yourdomain.com/app/websocket-server", // Set current working directory
+        instances : 1, // Or "max" to scale based on CPU cores
+        exec_mode : "cluster", // Enable clustering (better performance)
+        watch  : false, // Do not watch files in production, rely on deployment restarts
+        max_memory_restart : "250M", // Restart if memory exceeds threshold
+        env: { // Environment variables passed to the application
+          "NODE_ENV": "production",
+          "PORT": 8080,
+          "ALLOWED_ORIGIN": "https://yourdomain.com",
+          // Add other production environment variables here
+          // "DATABASE_URL": "prod_db_connection_string"
+        },
+        // Log file configuration
+        log_date_format: "YYYY-MM-DD HH:mm:ss Z",
+        out_file: "/home/deploy_user/.pm2/logs/websocket-app-out.log",
+        error_file: "/home/deploy_user/.pm2/logs/websocket-app-err.log",
+        merge_logs: true, // Merge logs from different instances if using cluster mode > 1
+      }]
+    }
+    ```
+3.  **Start Application via PM2**:
+    *   Navigate to the directory containing `ecosystem.config.js`.
+    *   Start: `pm2 start ecosystem.config.js` (PM2 automatically reads `env` section)
+    *   Save process list for reboot: `pm2 save`
+    *   Check status: `pm2 list` or `pm2 monit`
+
+## Phase 5: DNS Configuration
+
+1.  **Access DNS Provider**: Log in to your domain registrar or DNS hosting provider.
+2.  **Configure DNS Records**:
+    *   **`A` Record**: Point the root domain (`@` or `yourdomain.com`) to your server's public IPv4 address.
+    *   **`AAAA` Record**: Point the root domain (`@` or `yourdomain.com`) to your server's public IPv6 address (if available).
+    *   **`CNAME` Record**: Point the `www` subdomain to `yourdomain.com` (if you want `www` to work).
+    *   **DNSSEC (Recommended)**: Enable DNSSEC if your provider supports it for enhanced DNS security.
+3.  **Propagation**: Allow time (minutes to 48 hours) for DNS changes to fully propagate worldwide.
+
+## Phase 6: Deployment Workflow (Updates)
+
+1.  **Connect**: SSH as `deploy_user`.
+2.  **Navigate**: `cd /srv/www/yourdomain.com/app`
+3.  **Get Latest Code**: `git pull origin main` (or relevant branch)
+4.  **Backend Update**:
+    *   `cd websocket-server`
+    *   `npm install --production`
+    *   `npm run build` (if applicable)
+    *   `cd ..`
+5.  **Frontend Update**:
+    *   `cd webapp`
+    *   `npm install --production`
+    *   `export REACT_APP_WEBSOCKET_URL="wss://yourdomain.com/ws" && npm run build` (set correct env var name)
+    *   `cp -a build/. /srv/www/yourdomain.com/public_html/` (adjust source dir `build`/`dist`)
+    *   `cd ..`
+6.  **Restart Backend (Zero-Downtime)**:
+    *   `cd websocket-server`
+    *   `pm2 reload ecosystem.config.js` (PM2 handles zero-downtime reload for cluster mode)
+7.  **Verify**: Check `pm2 logs websocket-app`, test application functionality in browser.
+
+## Phase 7: Ongoing Maintenance & Monitoring
+
+1.  **System Updates**: Regularly run `sudo apt update && sudo apt upgrade -y`. Reboot when necessary (e.g., kernel updates).
+2.  **Dependency Updates**: Periodically update application dependencies (`npm update` within `websocket-server` and `webapp`, testing thoroughly). Run `npm audit fix` or review `npm audit` reports.
+3.  **Log Monitoring & Rotation**:
+    *   Check Nginx (`/var/log/nginx/`) and PM2 (`~/.pm2/logs/`) logs regularly.
+    *   Configure `logrotate` for Nginx and PM2 logs (`sudo nano /etc/logrotate.d/nginx`, create one for PM2 logs).
+4.  **Security Scans**: Consider automated server vulnerability scanning.
+5.  **Backups**: Implement regular backups of application data (if any databases are used) and critical configuration files (`/etc/nginx/`, `/etc/letsencrypt/`, `ecosystem.config.js`).
+6.  **Performance Monitoring**: Monitor server resource usage (CPU, RAM, Disk, Network I/O) using tools like `htop`, `netdata`, or provider dashboards. Check application response times.
+
+
