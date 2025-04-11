@@ -57,6 +57,7 @@ function handleFunctionCall(item) {
         }
         let args;
         try {
+<<<<<<< HEAD
             // Safely parse JSON to prevent prototype pollution
             const argumentString = item.arguments && typeof item.arguments === 'string'
                 ? item.arguments
@@ -68,6 +69,9 @@ function handleFunctionCall(item) {
                     error: "Arguments must be a valid object.",
                 });
             }
+=======
+            args = JSON.parse(item.arguments);
+>>>>>>> fe948f133714fd895bff30a939157e679590ea49
         }
         catch (_a) {
             return JSON.stringify({
@@ -130,8 +134,12 @@ function tryConnectModel() {
     if (isOpen(session.modelConn))
         return;
     console.log("Using session configuration:", session.saved_config);
+<<<<<<< HEAD
     const MODEL_URL = process.env.OPENAI_MODEL_URL || "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17";
     session.modelConn = new ws_1.WebSocket(MODEL_URL, {
+=======
+    session.modelConn = new ws_1.WebSocket("wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17", {
+>>>>>>> fe948f133714fd895bff30a939157e679590ea49
         headers: {
             Authorization: `Bearer ${session.openAIApiKey}`,
             "OpenAI-Beta": "realtime=v1",
@@ -289,10 +297,13 @@ function cleanupConnection(ws) {
 }
 function parseMessage(data) {
     try {
+<<<<<<< HEAD
         if (!data || !data.toString().trim()) {
             console.warn("Received empty or invalid message data");
             return null;
         }
+=======
+>>>>>>> fe948f133714fd895bff30a939157e679590ea49
         const msg = JSON.parse(data.toString());
         // Enhanced logging for audio data
         if (msg.type === "response.audio.delta") {
@@ -318,14 +329,51 @@ function isOpen(ws) {
     return !!ws && ws.readyState === ws_1.WebSocket.OPEN;
 }
 function setSessionConfig(config) {
+<<<<<<< HEAD
     console.log("Setting session configuration:", config);
     session.saved_config = config;
+=======
+    if (!session.saved_config) {
+        session.saved_config = {};
+    }
+    // Copy all properties from config to saved_config
+    if (config.modalities) {
+        session.saved_config.modalities = config.modalities;
+    }
+    if (config.turn_detection) {
+        session.saved_config.turn_detection = config.turn_detection;
+    }
+    if (config.input_audio_format) {
+        session.saved_config.input_audio_format = config.input_audio_format;
+    }
+    if (config.output_audio_format) {
+        session.saved_config.output_audio_format = config.output_audio_format;
+    }
+    if (config.voice) {
+        session.saved_config.voice = config.voice;
+    }
+    if (config.instructions) {
+        session.saved_config.instructions = config.instructions;
+    }
+    if (config.tools) {
+        session.saved_config.tools = config.tools;
+    }
+    // Handle recording configuration
+    if (config.recordCall !== undefined) {
+        session.saved_config.recordCall = config.recordCall;
+    }
+    console.log("Updated session configuration:", session.saved_config);
+>>>>>>> fe948f133714fd895bff30a939157e679590ea49
     // If we already have an active model connection, update it with the new configuration
     if (isOpen(session.modelConn)) {
         console.log("Updating active OpenAI session with new configuration");
         jsonSend(session.modelConn, {
             type: "session.update",
+<<<<<<< HEAD
             session: Object.assign(Object.assign({ modalities: ["text", "audio"], turn_detection: { type: "server_vad" }, input_audio_format: "g711_ulaw_8khz", output_audio_format: "g711_ulaw_8khz", voice: config.voice || "ash" }, (config.instructions && { instructions: config.instructions })), (config.tools && Array.isArray(config.tools) && config.tools.length > 0 && { tools: config.tools })),
+=======
+            session: Object.assign(Object.assign({ modalities: ["text", "audio"], turn_detection: { type: "server_vad" }, input_audio_format: "g711_ulaw_8khz", output_audio_format: "g711_ulaw_8khz", voice: session.saved_config.voice || "ash" }, (session.saved_config.instructions && { instructions: session.saved_config.instructions })), (session.saved_config.tools && Array.isArray(session.saved_config.tools) && session.saved_config.tools.length > 0 && { tools: session.saved_config.tools })),
+>>>>>>> fe948f133714fd895bff30a939157e679590ea49
         });
     }
     return true;

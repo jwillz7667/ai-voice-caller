@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { ToastProvider } from "@/lib/toast-provider";
 import { AuthProvider } from "@/lib/auth-context";
+import ClientLayout from "../components/client-layout";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,7 +24,9 @@ export default function RootLayout({
         <AuthProvider>
           <ThemeProvider defaultTheme="light" storageKey="jingle-theme-mode">
             <ToastProvider />
-            {children}
+            <ClientLayout>
+              {children}
+            </ClientLayout>
           </ThemeProvider>
         </AuthProvider>
       </body>
