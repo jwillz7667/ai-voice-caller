@@ -10,3 +10,4 @@ export * from "./table";
 export * from "./separator";
 export * from "./toast";
 export * from "./toaster";
+export * from "./slider";
