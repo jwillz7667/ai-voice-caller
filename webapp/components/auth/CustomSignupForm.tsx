@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
@@ -18,11 +18,11 @@ export default function CustomSignupForm() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [step, setStep] = useState<'form' | 'verification'>('form');
   const router = useRouter();
+  const { register } = useAuth();
 
   // Password strength indicators
-  const hasMinLength = formData.password.length >= 8;
+  const hasMinLength = formData.password.length >= 6;
   const hasUppercase = /[A-Z]/.test(formData.password);
   const hasNumber = /[0-9]/.test(formData.password);
   const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(formData.password);
@@ -56,21 +56,19 @@ export default function CustomSignupForm() {
     
     if (!formData.password) {
       newErrors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
-    } else if (passwordStrength < 3) {
-      newErrors.password = 'Password is not strong enough';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
     }
     
     if (!formData.agreeToTerms) {
-      newErrors.agreeToTerms = 'You must agree to the terms and conditions';
+      newErrors.agreeToTerms = 'You must agree to the terms';
     }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
@@ -80,92 +78,31 @@ export default function CustomSignupForm() {
     setLoading(true);
     
     try {
-      // Sign up with Supabase
-      const { data, error } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            name: formData.name,
-          },
-        },
-      });
-      
-      if (error) {
-        throw error;
-      }
-      
-      // Create initial profile with 10 free credits
-      if (data?.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: data.user.id,
-            email: formData.email,
-            name: formData.name,
-            credits: 10, // Start with 10 free credits
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
-          
-        if (profileError) {
-          console.error('Error creating profile:', profileError);
-        }
-      }
-      
-      // Show success message
-      toast.success('Registration successful! Please check your email to verify your account.');
-      setStep('verification');
-      
+      await register(formData.email, formData.password, formData.name);
+      // Navigation is handled in the auth context
     } catch (error: any) {
       console.error('Error during signup:', error);
-      toast.error(error.error_description || error.message || 'An error occurred during signup');
+      
+      if (error.message.includes('already exists')) {
+        setErrors({
+          ...errors,
+          email: 'An account with this email already exists',
+        });
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  if (step === 'verification') {
-    return (
-      <div className="p-8 rounded-lg border bg-card text-card-foreground shadow-md">
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-            <Check className="w-8 h-8 text-green-600" />
-          </div>
-          <h2 className="text-2xl font-bold">Check your email</h2>
-          <p className="text-gray-600">
-            We've sent a verification link to <span className="font-medium">{formData.email}</span>
-          </p>
-          <p className="text-sm text-gray-500 mt-2">
-            Click the link in your email to verify your account and continue to the dashboard.
-          </p>
-          
-          <div className="pt-4 border-t mt-6">
-            <p className="text-sm text-gray-500 mb-4">
-              Didn't receive an email? Check your spam folder or try again.
-            </p>
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={() => setStep('form')}
-            >
-              Back to sign up
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="p-6 rounded-lg border bg-card text-card-foreground shadow-md">
       <h2 className="text-xl font-semibold mb-6">Create your account</h2>
       
-      <form onSubmit={handleSignUp} className="space-y-4">
+      <form onSubmit={handleSignup} className="space-y-4">
         {/* Name field */}
         <div className="space-y-2">
           <label htmlFor="name" className="text-sm font-medium">
-            Name
+            Full name (optional)
           </label>
           <input
             id="name"
@@ -174,7 +111,7 @@ export default function CustomSignupForm() {
             value={formData.name}
             onChange={handleChange}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            placeholder="Your name"
+            placeholder="John Doe"
           />
         </div>
         
@@ -218,7 +155,7 @@ export default function CustomSignupForm() {
               className={`flex h-10 w-full rounded-md border ${
                 errors.password ? 'border-red-500' : 'border-input'
               } bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}
-              placeholder="Create a strong password"
+              placeholder="Enter your password"
               required
             />
             <button
@@ -236,75 +173,76 @@ export default function CustomSignupForm() {
             </p>
           )}
           
-          {/* Password strength meter */}
-          {formData.password.length > 0 && (
-            <div className="mt-2 space-y-2">
+          {/* Password strength indicator */}
+          {formData.password && (
+            <div className="space-y-2 mt-2">
               <div className="flex gap-1">
                 {[...Array(4)].map((_, i) => (
-                  <div 
-                    key={i} 
+                  <div
+                    key={i}
                     className={`h-1 flex-1 rounded-full ${
-                      i < passwordStrength 
-                        ? passwordStrength === 1 ? 'bg-red-500' 
-                        : passwordStrength === 2 ? 'bg-orange-500' 
-                        : passwordStrength === 3 ? 'bg-yellow-500' 
-                        : 'bg-green-500'
+                      i < passwordStrength
+                        ? passwordStrength <= 1
+                          ? 'bg-red-500'
+                          : passwordStrength <= 2
+                          ? 'bg-yellow-500'
+                          : passwordStrength <= 3
+                          ? 'bg-blue-500'
+                          : 'bg-green-500'
                         : 'bg-gray-200'
                     }`}
                   />
                 ))}
               </div>
-              <ul className="space-y-1 text-xs">
-                <li className={`flex items-center ${hasMinLength ? 'text-green-600' : 'text-gray-500'}`}>
-                  <span className={`inline-block w-3 h-3 mr-2 rounded-full ${hasMinLength ? 'bg-green-600' : 'bg-gray-200'}`} />
-                  At least 8 characters
-                </li>
-                <li className={`flex items-center ${hasUppercase ? 'text-green-600' : 'text-gray-500'}`}>
-                  <span className={`inline-block w-3 h-3 mr-2 rounded-full ${hasUppercase ? 'bg-green-600' : 'bg-gray-200'}`} />
-                  At least one uppercase letter
-                </li>
-                <li className={`flex items-center ${hasNumber ? 'text-green-600' : 'text-gray-500'}`}>
-                  <span className={`inline-block w-3 h-3 mr-2 rounded-full ${hasNumber ? 'bg-green-600' : 'bg-gray-200'}`} />
-                  At least one number
-                </li>
-                <li className={`flex items-center ${hasSpecialChar ? 'text-green-600' : 'text-gray-500'}`}>
-                  <span className={`inline-block w-3 h-3 mr-2 rounded-full ${hasSpecialChar ? 'bg-green-600' : 'bg-gray-200'}`} />
-                  At least one special character
-                </li>
-              </ul>
+              <div className="text-xs space-y-1">
+                <div className={`flex items-center ${hasMinLength ? 'text-green-600' : 'text-gray-400'}`}>
+                  <Check className="w-3 h-3 mr-1" />
+                  At least 6 characters
+                </div>
+                <div className={`flex items-center ${hasUppercase ? 'text-green-600' : 'text-gray-400'}`}>
+                  <Check className="w-3 h-3 mr-1" />
+                  One uppercase letter
+                </div>
+                <div className={`flex items-center ${hasNumber ? 'text-green-600' : 'text-gray-400'}`}>
+                  <Check className="w-3 h-3 mr-1" />
+                  One number
+                </div>
+                <div className={`flex items-center ${hasSpecialChar ? 'text-green-600' : 'text-gray-400'}`}>
+                  <Check className="w-3 h-3 mr-1" />
+                  One special character
+                </div>
+              </div>
             </div>
           )}
         </div>
         
-        {/* Terms checkbox */}
-        <div className="space-y-2">
-          <div className="flex items-start">
-            <input
-              id="agreeToTerms"
-              name="agreeToTerms"
-              type="checkbox"
-              checked={formData.agreeToTerms}
-              onChange={handleChange}
-              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary mt-1"
-            />
-            <label htmlFor="agreeToTerms" className="ml-2 block text-sm text-gray-600">
-              I agree to the{' '}
-              <Link href="/terms" className="text-primary hover:underline">
-                Terms of Service
-              </Link>{' '}
-              and{' '}
-              <Link href="/privacy" className="text-primary hover:underline">
-                Privacy Policy
-              </Link>
-            </label>
-          </div>
-          {errors.agreeToTerms && (
-            <p className="text-red-500 text-xs mt-1 flex items-center">
-              <AlertCircle className="w-3 h-3 mr-1" />
-              {errors.agreeToTerms}
-            </p>
-          )}
+        {/* Terms and conditions */}
+        <div className="flex items-start space-x-2">
+          <input
+            id="agreeToTerms"
+            name="agreeToTerms"
+            type="checkbox"
+            checked={formData.agreeToTerms}
+            onChange={handleChange}
+            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary mt-0.5"
+          />
+          <label htmlFor="agreeToTerms" className="text-sm text-gray-600">
+            I agree to the{' '}
+            <Link href="/terms" className="text-primary hover:underline">
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="text-primary hover:underline">
+              Privacy Policy
+            </Link>
+          </label>
         </div>
+        {errors.agreeToTerms && (
+          <p className="text-red-500 text-xs mt-1 flex items-center">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            {errors.agreeToTerms}
+          </p>
+        )}
         
         <Button
           type="submit"
@@ -323,4 +261,4 @@ export default function CustomSignupForm() {
       </form>
     </div>
   );
-} 
+}

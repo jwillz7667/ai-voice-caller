@@ -36,8 +36,18 @@ const CallInterface = () => {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [sessionConfig, setSessionConfig] = useState({
     instructions: "You are Jingle.AI, a helpful voice assistant in a phone call.",
-    voice: "alloy",
-    tools: []
+    voice: "ash", // Updated to use new expressive voice
+    tools: [],
+    turn_detection: {
+      type: "server_vad" as const,
+      threshold: 0.5,
+      prefix_padding_ms: 300,
+      silence_duration_ms: 500
+    },
+    temperature: 0.8,
+    input_audio_transcription: {
+      model: "whisper-1" as const
+    }
   });
 
   // Add log event handler for client-side events with enhanced verbosity

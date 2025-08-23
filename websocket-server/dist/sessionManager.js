@@ -57,7 +57,6 @@ function handleFunctionCall(item) {
         }
         let args;
         try {
-<<<<<<< HEAD
             // Safely parse JSON to prevent prototype pollution
             const argumentString = item.arguments && typeof item.arguments === 'string'
                 ? item.arguments
@@ -69,9 +68,6 @@ function handleFunctionCall(item) {
                     error: "Arguments must be a valid object.",
                 });
             }
-=======
-            args = JSON.parse(item.arguments);
->>>>>>> fe948f133714fd895bff30a939157e679590ea49
         }
         catch (_a) {
             return JSON.stringify({
@@ -134,12 +130,9 @@ function tryConnectModel() {
     if (isOpen(session.modelConn))
         return;
     console.log("Using session configuration:", session.saved_config);
-<<<<<<< HEAD
+    // Use the latest model version as of August 2025
     const MODEL_URL = process.env.OPENAI_MODEL_URL || "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17";
     session.modelConn = new ws_1.WebSocket(MODEL_URL, {
-=======
-    session.modelConn = new ws_1.WebSocket("wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17", {
->>>>>>> fe948f133714fd895bff30a939157e679590ea49
         headers: {
             Authorization: `Bearer ${session.openAIApiKey}`,
             "OpenAI-Beta": "realtime=v1",
@@ -150,17 +143,22 @@ function tryConnectModel() {
         const savedConfig = session.saved_config || {};
         console.log("Applying configuration to OpenAI session:", savedConfig);
         const sessionConfig = {
-            modalities: ["text", "audio"],
-            turn_detection: { type: "server_vad" },
+            modalities: savedConfig.modalities || ["text", "audio"],
+            turn_detection: savedConfig.turn_detection || {
+                type: "server_vad",
+                threshold: 0.5,
+                prefix_padding_ms: 300,
+                silence_duration_ms: 500
+            },
             input_audio_format: "g711_ulaw",
             output_audio_format: "g711_ulaw",
         };
-        // Apply user-specified voice if provided
+        // Apply user-specified voice if provided (default to ash - one of the new expressive voices)
         if (savedConfig.voice) {
             sessionConfig.voice = savedConfig.voice;
         }
         else {
-            sessionConfig.voice = "ash"; // default voice
+            sessionConfig.voice = "ash"; // default to new expressive voice
         }
         // Apply user-specified instructions if provided
         if (savedConfig.instructions) {
@@ -169,6 +167,17 @@ function tryConnectModel() {
         // Apply user-specified tools if provided
         if (savedConfig.tools && Array.isArray(savedConfig.tools) && savedConfig.tools.length > 0) {
             sessionConfig.tools = savedConfig.tools;
+        }
+        // Apply advanced configuration options
+        if (savedConfig.temperature !== undefined) {
+            sessionConfig.temperature = savedConfig.temperature;
+        }
+        if (savedConfig.max_response_output_tokens !== undefined) {
+            sessionConfig.max_response_output_tokens = savedConfig.max_response_output_tokens;
+        }
+        // Apply audio transcription settings if provided
+        if (savedConfig.input_audio_transcription) {
+            sessionConfig.input_audio_transcription = savedConfig.input_audio_transcription;
         }
         jsonSend(session.modelConn, {
             type: "session.update",
@@ -297,13 +306,10 @@ function cleanupConnection(ws) {
 }
 function parseMessage(data) {
     try {
-<<<<<<< HEAD
         if (!data || !data.toString().trim()) {
             console.warn("Received empty or invalid message data");
             return null;
         }
-=======
->>>>>>> fe948f133714fd895bff30a939157e679590ea49
         const msg = JSON.parse(data.toString());
         // Enhanced logging for audio data
         if (msg.type === "response.audio.delta") {
@@ -329,10 +335,6 @@ function isOpen(ws) {
     return !!ws && ws.readyState === ws_1.WebSocket.OPEN;
 }
 function setSessionConfig(config) {
-<<<<<<< HEAD
-    console.log("Setting session configuration:", config);
-    session.saved_config = config;
-=======
     if (!session.saved_config) {
         session.saved_config = {};
     }
@@ -363,17 +365,17 @@ function setSessionConfig(config) {
         session.saved_config.recordCall = config.recordCall;
     }
     console.log("Updated session configuration:", session.saved_config);
->>>>>>> fe948f133714fd895bff30a939157e679590ea49
     // If we already have an active model connection, update it with the new configuration
     if (isOpen(session.modelConn)) {
         console.log("Updating active OpenAI session with new configuration");
         jsonSend(session.modelConn, {
             type: "session.update",
-<<<<<<< HEAD
-            session: Object.assign(Object.assign({ modalities: ["text", "audio"], turn_detection: { type: "server_vad" }, input_audio_format: "g711_ulaw_8khz", output_audio_format: "g711_ulaw_8khz", voice: config.voice || "ash" }, (config.instructions && { instructions: config.instructions })), (config.tools && Array.isArray(config.tools) && config.tools.length > 0 && { tools: config.tools })),
-=======
-            session: Object.assign(Object.assign({ modalities: ["text", "audio"], turn_detection: { type: "server_vad" }, input_audio_format: "g711_ulaw_8khz", output_audio_format: "g711_ulaw_8khz", voice: session.saved_config.voice || "ash" }, (session.saved_config.instructions && { instructions: session.saved_config.instructions })), (session.saved_config.tools && Array.isArray(session.saved_config.tools) && session.saved_config.tools.length > 0 && { tools: session.saved_config.tools })),
->>>>>>> fe948f133714fd895bff30a939157e679590ea49
+            session: Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({ modalities: session.saved_config.modalities || ["text", "audio"], turn_detection: session.saved_config.turn_detection || {
+                    type: "server_vad",
+                    threshold: 0.5,
+                    prefix_padding_ms: 300,
+                    silence_duration_ms: 500
+                }, input_audio_format: "g711_ulaw", output_audio_format: "g711_ulaw", voice: session.saved_config.voice || "ash" }, (session.saved_config.instructions && { instructions: session.saved_config.instructions })), (session.saved_config.tools && Array.isArray(session.saved_config.tools) && session.saved_config.tools.length > 0 && { tools: session.saved_config.tools })), (session.saved_config.temperature !== undefined && { temperature: session.saved_config.temperature })), (session.saved_config.max_response_output_tokens !== undefined && { max_response_output_tokens: session.saved_config.max_response_output_tokens })), (session.saved_config.input_audio_transcription && { input_audio_transcription: session.saved_config.input_audio_transcription })),
         });
     }
     return true;

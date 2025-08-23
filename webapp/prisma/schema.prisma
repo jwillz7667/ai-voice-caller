@@ -1,0 +1,106 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String            @id @default(cuid())
+  email          String            @unique
+  password       String
+  name           String?
+  phone          String?
+  company        String?
+  jobTitle       String?           @map("job_title")
+  avatarUrl      String?           @map("avatar_url")
+  credits        Int               @default(100)
+  emailVerified  Boolean           @default(false) @map("email_verified")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  
+  transactions   CreditTransaction[]
+  callLogs       CallLog[]
+  sessions       Session[]
+  
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@map("sessions")
+}
+
+model CreditTransaction {
+  id              String            @id @default(cuid())
+  userId          String            @map("user_id")
+  amount          Int
+  transactionType TransactionType   @map("transaction_type")
+  paymentId       String?           @map("payment_id")
+  description     String?
+  createdAt       DateTime          @default(now()) @map("created_at")
+  
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@map("credit_transactions")
+}
+
+enum TransactionType {
+  PURCHASE
+  USAGE
+  REFUND
+  BONUS
+}
+
+model CallLog {
+  id              String            @id @default(cuid())
+  userId          String?           @map("user_id")
+  sessionId       String            @unique @map("session_id")
+  phoneNumber     String            @map("phone_number")
+  direction       CallDirection
+  duration        Int               @default(0) // in seconds
+  status          CallStatus
+  creditsUsed     Int               @default(0) @map("credits_used")
+  transcript      Json?
+  metadata        Json?
+  startedAt       DateTime?         @map("started_at")
+  endedAt         DateTime?         @map("ended_at")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  
+  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([userId])
+  @@index([sessionId])
+  @@map("call_logs")
+}
+
+enum CallDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum CallStatus {
+  INITIATED
+  RINGING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  NO_ANSWER
+  BUSY
+  CANCELLED
+}

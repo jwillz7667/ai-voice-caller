@@ -32,6 +32,9 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   const [voice, setVoice] = useState("ash");
   const [tools, setTools] = useState<string[]>([]);
   const [recordCall, setRecordCall] = useState(false);
+  const [vadType, setVadType] = useState<'server_vad' | 'semantic_vad' | 'none'>('server_vad');
+  const [temperature, setTemperature] = useState(0.8);
+  const [transcriptionModel, setTranscriptionModel] = useState<'whisper-1' | 'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe'>('whisper-1');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingSchemaStr, setEditingSchemaStr] = useState("");
   const [isJsonValid, setIsJsonValid] = useState(true);
@@ -48,7 +51,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   // Track changes to determine if there are unsaved modifications
   useEffect(() => {
     setHasUnsavedChanges(true);
-  }, [instructions, voice, tools, recordCall]);
+  }, [instructions, voice, tools, recordCall, vadType, temperature, transcriptionModel]);
 
   // Reset save status after a delay when saved
   useEffect(() => {
@@ -68,6 +71,18 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
         voice,
         tools: tools.map((tool) => JSON.parse(tool)),
         recordCall,
+        turn_detection: {
+          type: vadType,
+          ...(vadType === 'server_vad' && {
+            threshold: 0.5,
+            prefix_padding_ms: 300,
+            silence_duration_ms: 500
+          })
+        },
+        temperature,
+        input_audio_transcription: {
+          model: transcriptionModel
+        }
       });
       setSaveStatus("saved");
       setHasUnsavedChanges(false);
@@ -197,11 +212,67 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
                   <SelectValue placeholder="Select voice" />
                 </SelectTrigger>
                 <SelectContent>
-                  {["ash", "ballad", "coral", "sage", "verse"].map((v) => (
-                    <SelectItem key={v} value={v}>
-                      {v}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="alloy">alloy (Classic)</SelectItem>
+                  <SelectItem value="ash">ash (Expressive)</SelectItem>
+                  <SelectItem value="ballad">ballad (Expressive)</SelectItem>
+                  <SelectItem value="coral">coral (Expressive)</SelectItem>
+                  <SelectItem value="echo">echo (Classic)</SelectItem>
+                  <SelectItem value="sage">sage (Expressive)</SelectItem>
+                  <SelectItem value="shimmer">shimmer (Classic)</SelectItem>
+                  <SelectItem value="verse">verse (Expressive)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none">Voice Activity Detection</label>
+              <Select value={vadType} onValueChange={(value: any) => setVadType(value)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select VAD type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="server_vad">Server VAD (Default)</SelectItem>
+                  <SelectItem value="semantic_vad">Semantic VAD (AI-based)</SelectItem>
+                  <SelectItem value="none">None (Manual)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {vadType === 'semantic_vad' 
+                  ? "AI detects when you've finished speaking based on context"
+                  : vadType === 'server_vad' 
+                  ? "Detects speech using silence thresholds"
+                  : "Manual control over conversation turns"}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none">
+                Temperature ({temperature})
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.1"
+                value={temperature}
+                onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                Controls response randomness (0 = deterministic, 2 = very creative)
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none">Transcription Model</label>
+              <Select value={transcriptionModel} onValueChange={(value: any) => setTranscriptionModel(value)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select transcription model" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="whisper-1">Whisper-1 (Standard)</SelectItem>
+                  <SelectItem value="gpt-4o-transcribe">GPT-4o Transcribe (Advanced)</SelectItem>
+                  <SelectItem value="gpt-4o-mini-transcribe">GPT-4o Mini Transcribe (Fast)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

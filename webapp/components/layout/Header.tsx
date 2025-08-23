@@ -7,7 +7,7 @@ import { useUserStore } from '@/lib/user-store';
 import { usePathname } from 'next/navigation';
 
 export default function Header() {
-  const { user, signOut, profile } = useAuth();
+  const { user, logout } = useAuth();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -75,11 +75,11 @@ export default function Header() {
                   className="flex items-center gap-2 p-2 rounded-md hover:bg-accent relative"
                 >
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
-                    {profile?.name ? profile.name.charAt(0).toUpperCase() : user.email?.charAt(0).toUpperCase()}
+                    {user.name ? user.name.charAt(0).toUpperCase() : user.email?.charAt(0).toUpperCase()}
                   </div>
                   <div className="hidden md:block text-left">
-                    <p className="text-sm font-medium">{profile?.name || 'User'}</p>
-                    <p className="text-xs text-muted-foreground">{profile?.credits || 0} credits</p>
+                    <p className="text-sm font-medium">{user.name || 'User'}</p>
+                    <p className="text-xs text-muted-foreground">{user.credits || 0} credits</p>
                   </div>
                 </button>
                 
@@ -120,7 +120,7 @@ export default function Header() {
                       </Link>
                       <button
                         onClick={() => {
-                          signOut();
+                          logout();
                           setMenuOpen(false);
                         }}
                         className="block w-full text-left px-4 py-2 text-sm text-foreground hover:bg-accent border-t"
@@ -197,7 +197,7 @@ export default function Header() {
                 </Link>
                 <button
                   onClick={() => {
-                    signOut();
+                    logout();
                     setMenuOpen(false);
                   }}
                   className="text-left text-foreground hover:text-primary"

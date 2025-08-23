@@ -1,88 +1,174 @@
 'use client';
 
-import React, { createContext, useState, useEffect, useContext } from 'react';
-import { Session, User } from '@supabase/supabase-js';
-import { supabase, UserProfile } from './supabase';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 
-type AuthContextType = {
-  session: Session | null;
+interface User {
+  id: string;
+  email: string;
+  name?: string | null;
+  phone?: string | null;
+  company?: string | null;
+  jobTitle?: string | null;
+  avatarUrl?: string | null;
+  credits: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface AuthContextType {
   user: User | null;
-  profile: UserProfile | null;
+  token: string | null;
   loading: boolean;
-  signOut: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
-};
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name?: string) => Promise<void>;
+  logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  // Load token from localStorage on mount
   useEffect(() => {
-    const fetchSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user || null);
-      
-      if (session?.user) {
-        await refreshProfile();
-      }
-      
+    const storedToken = localStorage.getItem('auth-token');
+    if (storedToken) {
+      setToken(storedToken);
+      fetchUser(storedToken);
+    } else {
       setLoading(false);
-    };
-
-    fetchSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user || null);
-        
-        if (session?.user) {
-          await refreshProfile();
-        } else {
-          setProfile(null);
-        }
-        
-        setLoading(false);
-        router.refresh();
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    }
   }, []);
 
-  const refreshProfile = async () => {
-    if (!user) return;
-    
+  const fetchUser = async (authToken: string) => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-        
-      if (error) throw error;
-      setProfile(data as UserProfile);
+      const response = await fetch('/api/user', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      } else {
+        // Token is invalid, clear it
+        localStorage.removeItem('auth-token');
+        setToken(null);
+        setUser(null);
+      }
     } catch (error) {
-      console.error('Error loading user profile:', error);
+      console.error('Error fetching user:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
+  const login = async (email: string, password: string) => {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Login failed');
+      }
+
+      const { user: userData, token: authToken } = await response.json();
+      
+      // Store token
+      localStorage.setItem('auth-token', authToken);
+      setToken(authToken);
+      setUser(userData);
+      
+      toast.success('Logged in successfully');
+      router.push('/dashboard');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to login');
+      throw error;
+    }
+  };
+
+  const register = async (email: string, password: string, name?: string) => {
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password, name }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Registration failed');
+      }
+
+      const { user: userData, token: authToken } = await response.json();
+      
+      // Store token
+      localStorage.setItem('auth-token', authToken);
+      setToken(authToken);
+      setUser(userData);
+      
+      toast.success('Account created successfully');
+      router.push('/dashboard');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to register');
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      if (token) {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('auth-token');
+      setToken(null);
+      setUser(null);
+      router.push('/login');
+      toast.success('Logged out successfully');
+    }
+  };
+
+  const refreshUser = async () => {
+    if (token) {
+      await fetchUser(token);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, profile, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        loading,
+        login,
+        register,
+        logout,
+        refreshUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -94,4 +180,4 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-} 
+}

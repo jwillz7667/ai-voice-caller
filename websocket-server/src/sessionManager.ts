@@ -3,12 +3,22 @@ import functions from "./functionHandlers";
 
 interface OpenAISessionConfig {
   modalities: string[];
-  turn_detection: { type: string };
+  turn_detection: { 
+    type: 'none' | 'server_vad' | 'semantic_vad';
+    threshold?: number;
+    prefix_padding_ms?: number;
+    silence_duration_ms?: number;
+  };
   input_audio_format: string;
   output_audio_format: string;
-  voice?: string;
+  input_audio_transcription?: {
+    model: 'whisper-1' | 'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe';
+  };
+  voice?: 'alloy' | 'ash' | 'ballad' | 'coral' | 'echo' | 'sage' | 'shimmer' | 'verse';
   instructions?: string;
   tools?: any[];
+  temperature?: number;
+  max_response_output_tokens?: number | 'inf';
   recordCall?: boolean;
 }
 
@@ -102,6 +112,8 @@ function handleTwilioMessage(data: RawData) {
   const msg = parseMessage(data);
   if (!msg) return;
 
+  console.log("Received from Twilio:", msg.event);
+  
   switch (msg.event) {
     case "start":
       session.streamSid = msg.start.streamSid;
@@ -139,13 +151,26 @@ function handleFrontendMessage(data: RawData) {
 }
 
 function tryConnectModel() {
-  if (!session.twilioConn || !session.streamSid || !session.openAIApiKey)
+  if (!session.twilioConn || !session.streamSid || !session.openAIApiKey) {
+    console.log("Cannot connect to OpenAI - missing requirements:", {
+      hasTwilioConn: !!session.twilioConn,
+      hasStreamSid: !!session.streamSid,
+      hasOpenAIApiKey: !!session.openAIApiKey
+    });
     return;
-  if (isOpen(session.modelConn)) return;
+  }
+  if (isOpen(session.modelConn)) {
+    console.log("OpenAI connection already open");
+    return;
+  }
 
   console.log("Using session configuration:", session.saved_config);
 
-  const MODEL_URL = process.env.OPENAI_MODEL_URL || "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17";
+  // Use the latest model version as of August 2025
+  const MODEL_URL = process.env.OPENAI_MODEL_URL || "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview";
+  
+  console.log("Connecting to OpenAI at:", MODEL_URL);
+  console.log("Using API key:", session.openAIApiKey ? `${session.openAIApiKey.substring(0, 10)}...` : "NOT SET");
   
   session.modelConn = new WebSocket(
     MODEL_URL,
@@ -158,54 +183,113 @@ function tryConnectModel() {
   );
 
   session.modelConn.on("open", () => {
+    console.log("Connected to OpenAI Realtime API successfully");
     // Extract saved configuration and ensure it's properly typed
     const savedConfig = session.saved_config || {} as OpenAISessionConfig;
     console.log("Applying configuration to OpenAI session:", savedConfig);
 
     const sessionConfig: OpenAISessionConfig = {
-      modalities: ["text", "audio"],
-      turn_detection: { type: "server_vad" },
-      input_audio_format: "g711_ulaw",
-      output_audio_format: "g711_ulaw",
+      modalities: ["audio", "text"],  // Always enable both audio and text
+      turn_detection: savedConfig.turn_detection,
+      input_audio_format: "g711_ulaw",  // Twilio uses G.711 µ-law
+      output_audio_format: "g711_ulaw", // Twilio expects G.711 µ-law
+      instructions: savedConfig.instructions,  // Use EXACTLY what's configured in the interface
+      voice: savedConfig.voice
     };
-
-    // Apply user-specified voice if provided
-    if (savedConfig.voice) {
-      sessionConfig.voice = savedConfig.voice;
-    } else {
-      sessionConfig.voice = "ash"; // default voice
-    }
-    
-    // Apply user-specified instructions if provided
-    if (savedConfig.instructions) {
-      sessionConfig.instructions = savedConfig.instructions;
-    }
     
     // Apply user-specified tools if provided
     if (savedConfig.tools && Array.isArray(savedConfig.tools) && savedConfig.tools.length > 0) {
       sessionConfig.tools = savedConfig.tools;
+    }
+    
+    // Apply advanced configuration options
+    if (savedConfig.temperature !== undefined) {
+      sessionConfig.temperature = savedConfig.temperature;
+    }
+    
+    if (savedConfig.max_response_output_tokens !== undefined) {
+      sessionConfig.max_response_output_tokens = savedConfig.max_response_output_tokens;
+    }
+    
+    // Apply audio transcription settings if provided
+    if (savedConfig.input_audio_transcription) {
+      sessionConfig.input_audio_transcription = savedConfig.input_audio_transcription;
     }
 
     jsonSend(session.modelConn, {
       type: "session.update",
       session: sessionConfig,
     });
+
+    // Don't trigger initial response here - wait for session.updated event
   });
 
   session.modelConn.on("message", handleModelMessage);
-  session.modelConn.on("error", closeModel);
-  session.modelConn.on("close", closeModel);
+  session.modelConn.on("error", (error) => {
+    console.error("OpenAI WebSocket error:", error);
+    closeModel();
+  });
+  session.modelConn.on("close", (code, reason) => {
+    console.log("OpenAI WebSocket closed. Code:", code, "Reason:", reason?.toString());
+    closeModel();
+  });
 }
 
 function handleModelMessage(data: RawData) {
   const event = parseMessage(data);
   if (!event) return;
 
+  console.log("Received from OpenAI:", event.type);
   jsonSend(session.frontendConn, event);
 
   switch (event.type) {
+    case "error":
+      console.error("OpenAI API Error:", JSON.stringify(event.error, null, 2));
+      break;
+      
+    case "response.function_call_arguments.done":
+    case "response.content_part.done":
+      console.log("Content part done:", event);
+      break;
+      
+    case "session.created":
+      console.log("Session created with ID:", event.session?.id);
+      break;
+      
+    case "session.updated":
+      console.log("Session updated successfully");
+      // Trigger the initial greeting directly
+      console.log("Triggering initial greeting");
+      jsonSend(session.modelConn, {
+        type: "response.create"
+      });
+      break;
+
     case "input_audio_buffer.speech_started":
       handleTruncation();
+      break;
+      
+    case "input_audio_buffer.speech_stopped":
+      console.log("User stopped speaking");
+      break;
+      
+    case "conversation.item.created":
+      console.log("Conversation item created:", event.item?.id);
+      break;
+      
+    case "response.created":
+      console.log("Response generation started");
+      break;
+      
+    case "response.done":
+      console.log("Response generation completed:", {
+        status: event.response?.status,
+        usage: event.response?.usage
+      });
+      break;
+      
+    case "response.output_item.added":
+      console.log("Output item added:", event.item?.type);
       break;
 
     case "response.audio.delta":
@@ -240,9 +324,25 @@ function handleModelMessage(data: RawData) {
       }
       break;
 
+    case "response.audio.done":
+      console.log("Audio response completed");
+      break;
+      
+    case "response.text.delta":
+      if (event.delta) {
+        console.log("Text delta:", event.delta);
+      }
+      break;
+      
+    case "response.text.done":
+      if (event.text) {
+        console.log("Text response:", event.text);
+      }
+      break;
+
     case "response.output_item.done": {
       const { item } = event;
-      if (item.type === "function_call") {
+      if (item?.type === "function_call") {
         handleFunctionCall(item)
           .then((output) => {
             if (session.modelConn) {
@@ -408,13 +508,21 @@ export function setSessionConfig(config: OpenAISessionConfig) {
     jsonSend(session.modelConn, {
       type: "session.update",
       session: {
-        modalities: ["text", "audio"],
-        turn_detection: { type: "server_vad" },
-        input_audio_format: "g711_ulaw_8khz", // Updated to explicitly specify 8khz
-        output_audio_format: "g711_ulaw_8khz", // Updated to explicitly specify 8khz
+        modalities: session.saved_config.modalities || ["text", "audio"],
+        turn_detection: session.saved_config.turn_detection || { 
+          type: "server_vad",
+          threshold: 0.5,
+          prefix_padding_ms: 300,
+          silence_duration_ms: 500
+        },
+        input_audio_format: "g711_ulaw",
+        output_audio_format: "g711_ulaw",
         voice: session.saved_config.voice || "ash",
         ...(session.saved_config.instructions && { instructions: session.saved_config.instructions }),
         ...(session.saved_config.tools && Array.isArray(session.saved_config.tools) && session.saved_config.tools.length > 0 && { tools: session.saved_config.tools }),
+        ...(session.saved_config.temperature !== undefined && { temperature: session.saved_config.temperature }),
+        ...(session.saved_config.max_response_output_tokens !== undefined && { max_response_output_tokens: session.saved_config.max_response_output_tokens }),
+        ...(session.saved_config.input_audio_transcription && { input_audio_transcription: session.saved_config.input_audio_transcription }),
       },
     });
   }

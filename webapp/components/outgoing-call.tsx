@@ -27,7 +27,7 @@ export default function OutgoingCall({ onCallInitiated, currentConfig }: Outgoin
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [callStartTime, setCallStartTime] = useState<Date | null>(null);
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +41,7 @@ export default function OutgoingCall({ onCallInitiated, currentConfig }: Outgoin
     }
     
     // Check if user has enough credits
-    if (!profile || profile.credits < MIN_REQUIRED_CREDITS) {
+    if (!user || user.credits < MIN_REQUIRED_CREDITS) {
       toast.error(`You need at least ${MIN_REQUIRED_CREDITS} credits to make a call`);
       setErrorMessage(`Insufficient credits. You need at least ${MIN_REQUIRED_CREDITS} credits to make a call.`);
       setCallStatus("error");
@@ -123,10 +123,10 @@ export default function OutgoingCall({ onCallInitiated, currentConfig }: Outgoin
         </div>
         <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">Outgoing Call</h3>
         <div className="ml-auto flex items-center gap-2">
-          {user && profile && (
+          {user && (
             <div className="text-sm flex items-center gap-1 text-gray-600 dark:text-gray-300 mr-2">
               <Coins className="h-4 w-4 text-yellow-500" />
-              <span>{profile.credits || 0} credits</span>
+              <span>{user.credits || 0} credits</span>
             </div>
           )}
           <BackendTag />
@@ -155,7 +155,7 @@ export default function OutgoingCall({ onCallInitiated, currentConfig }: Outgoin
             
             <Button
               type="submit"
-              disabled={callStatus === "calling" || loading || !phoneNumber.trim() || (profile ? profile.credits < MIN_REQUIRED_CREDITS : true)}
+              disabled={callStatus === "calling" || loading || !phoneNumber.trim() || (user ? user.credits < MIN_REQUIRED_CREDITS : true)}
               className={`h-12 rounded-xl transition-all duration-300 ${
                 callStatus === "connected" 
                   ? "bg-green-600 hover:bg-green-700" 
@@ -193,7 +193,7 @@ export default function OutgoingCall({ onCallInitiated, currentConfig }: Outgoin
             </Button>
           </div>
 
-          {profile && profile.credits < MIN_REQUIRED_CREDITS && callStatus === "idle" && (
+          {user && user.credits < MIN_REQUIRED_CREDITS && callStatus === "idle" && (
             <div className="flex items-start gap-2 text-amber-600 dark:text-amber-400 text-sm p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
               <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
               <div>

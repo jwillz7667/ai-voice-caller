@@ -139,6 +139,38 @@ app.post("/config", express.json(), (req: express.Request, res: express.Response
   }
 });
 
+// Also handle /session-config endpoint (alias for /config)
+app.post("/session-config", express.json(), (req: express.Request, res: express.Response) => {
+  try {
+    const config = req.body;
+    console.log("Received session configuration:", config);
+    
+    // Store the configuration in the session manager
+    if (sessionManager.setSessionConfig) {
+      sessionManager.setSessionConfig(config);
+      res.status(200).json({ success: true });
+    } else {
+      res.status(500).json({ error: "Session manager not available" });
+    }
+  } catch (error) {
+    console.error("Error handling session configuration:", error);
+    res.status(500).json({ error: "Failed to process configuration" });
+  }
+});
+
+// Add call status callback endpoint
+app.post("/call-status", express.json(), (req, res) => {
+  try {
+    console.log("Call status update received:", req.body);
+    
+    // Send 204 No Content response for Twilio
+    res.status(204).send();
+  } catch (error) {
+    console.error("Error handling call status:", error);
+    res.status(204).send();
+  }
+});
+
 // Add recording status callback endpoint
 app.post("/recording-status", express.json(), (req, res) => {
   try {

@@ -1,7 +1,19 @@
 'use client';
 
 import { create } from 'zustand';
-import { UserProfile } from './supabase';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string | null;
+  phone: string | null;
+  company: string | null;
+  jobTitle: string | null;
+  avatarUrl: string | null;
+  credits: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 interface UserStore {
   credits: number;
@@ -22,4 +34,4 @@ export const useUserStore = create<UserStore>((set) => ({
   setCredits: (credits) => set({ credits }),
   addCredits: (amount) => set((state) => ({ credits: state.credits + amount })),
   subtractCredits: (amount) => set((state) => ({ credits: Math.max(0, state.credits - amount) })),
-})); 
+}));

@@ -1,22 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
+  // Remove 'output: export' to enable API routes and server-side features
   images: {
     unoptimized: true
   },
-  // Disable trailing slash for Netlify compatibility
+  // Disable trailing slash for compatibility
   trailingSlash: false,
-  distDir: 'out',
-  
-  // Add exportPathMap to explicitly control what gets exported
-  exportPathMap: async function() {
-    // Define the pages to export (exclude API routes)
-    return {
-      '/': { page: '/' },
-      // Add other specific pages you want to include in static export
-      // API routes will be automatically excluded
-    }
-  }
+  // Keep default build directory for server mode
+  // distDir: '.next'
 };
 
 export default nextConfig;
