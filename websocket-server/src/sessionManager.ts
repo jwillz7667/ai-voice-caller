@@ -202,9 +202,9 @@ function tryConnectModel() {
       sessionConfig.tools = savedConfig.tools;
     }
     
-    // Apply advanced configuration options
+    // Apply advanced configuration options - clamp temperature to max of 1.2
     if (savedConfig.temperature !== undefined) {
-      sessionConfig.temperature = savedConfig.temperature;
+      sessionConfig.temperature = Math.min(savedConfig.temperature, 1.2);
     }
     
     if (savedConfig.max_response_output_tokens !== undefined) {
@@ -482,11 +482,21 @@ export function setSessionConfig(config: any) {
       input_audio_format: "g711_ulaw",
       output_audio_format: "g711_ulaw",
       voice: config.voice || "ash",
-      instructions: config.instructions,
-      temperature: config.temperature,
-      max_response_output_tokens: config.max_response_output_tokens,
-      input_audio_transcription: config.input_audio_transcription
+      instructions: config.instructions
     };
+    
+    // Clamp temperature to maximum allowed value
+    if (config.temperature !== undefined) {
+      sessionUpdate.temperature = Math.min(config.temperature, 1.2);
+    }
+    
+    if (config.max_response_output_tokens !== undefined) {
+      sessionUpdate.max_response_output_tokens = config.max_response_output_tokens;
+    }
+    
+    if (config.input_audio_transcription) {
+      sessionUpdate.input_audio_transcription = config.input_audio_transcription;
+    }
     
     // Only add tools if they exist and are not empty
     if (config.tools && Array.isArray(config.tools) && config.tools.length > 0) {
