@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Make the outgoing call
+    // Make the outgoing call with recording enabled
     const call = await client.calls.create({
       to: phoneNumber,
       from: twilioPhoneNumber,
@@ -52,7 +52,22 @@ export async function POST(request: NextRequest) {
       statusCallback: `${publicUrl}/call-status`,
       statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
       statusCallbackMethod: 'POST',
+      record: true, // Enable recording
+      recordingStatusCallback: `${publicUrl}/recording-status`,
+      recordingStatusCallbackMethod: 'POST',
+      recordingStatusCallbackEvent: ['completed']
     });
+
+    // Store the callSid in session or database for later reference
+    // You might want to create a call log entry here
+    try {
+      // This is a placeholder - you should associate this with the current user
+      // For now, we'll just log it
+      console.log("Call initiated with SID:", call.sid);
+      // TODO: Create call log entry with callSid
+    } catch (error) {
+      console.error("Failed to store call log:", error);
+    }
 
     return NextResponse.json({
       success: true,

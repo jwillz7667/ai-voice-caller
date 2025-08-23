@@ -63,11 +63,9 @@ app.all("/twiml", (req: express.Request, res: express.Response) => {
   wsUrl.protocol = "wss:";
   wsUrl.pathname = `/call`;
   
-  // Get recording configuration - check process.env or use session config
-  const recordCall = process.env.RECORD_CALL === 'true';
-  const recordingStatusUrl = recordCall ? 
-    new URL("/recording-status", PUBLIC_URL).toString() : 
-    '';
+  // Enable recording by default
+  const recordCall = true;  // Always record calls
+  const recordingStatusUrl = new URL("/recording-status", PUBLIC_URL).toString();
   
   // Use Handlebars to render the template with all variables
   const twimlContent = twimlHandlebars({
@@ -172,14 +170,44 @@ app.post("/call-status", express.json(), (req, res) => {
 });
 
 // Add recording status callback endpoint
-app.post("/recording-status", express.json(), (req, res) => {
+app.post("/recording-status", express.json(), async (req, res) => {
   try {
     console.log("Recording status update received:", req.body);
     
-    // Here you would typically:
-    // 1. Log the recording details
-    // 2. Store recording info in your database
-    // 3. Update the session with recording info
+    const {
+      RecordingSid,
+      RecordingUrl,
+      RecordingStatus,
+      RecordingDuration,
+      CallSid
+    } = req.body;
+    
+    if (RecordingStatus === 'completed' && RecordingUrl) {
+      console.log(`Recording completed for call ${CallSid}:`);
+      console.log(`  Recording SID: ${RecordingSid}`);
+      console.log(`  Recording URL: ${RecordingUrl}`);
+      console.log(`  Duration: ${RecordingDuration} seconds`);
+      
+      // Store recording info in database via webhook to webapp
+      try {
+        const webappUrl = process.env.WEBAPP_URL || 'http://localhost:3000';
+        await fetch(`${webappUrl}/api/recordings/webhook`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            callSid: CallSid,
+            recordingSid: RecordingSid,
+            recordingUrl: RecordingUrl,
+            duration: RecordingDuration,
+            status: RecordingStatus
+          })
+        });
+      } catch (error) {
+        console.error('Failed to notify webapp of recording:', error);
+      }
+    }
     
     // Example of recording data from Twilio:
     // - RecordingSid: The unique ID of the recording

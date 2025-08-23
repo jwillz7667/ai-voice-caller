@@ -461,69 +461,41 @@ function isOpen(ws?: WebSocket): ws is WebSocket {
   return !!ws && ws.readyState === WebSocket.OPEN;
 }
 
-export function setSessionConfig(config: OpenAISessionConfig) {
-  if (!session.saved_config) {
-    session.saved_config = {} as OpenAISessionConfig;
-  }
-
-  // Copy all properties from config to saved_config
-  if (config.modalities) {
-    session.saved_config.modalities = config.modalities;
-  }
-  
-  if (config.turn_detection) {
-    session.saved_config.turn_detection = config.turn_detection;
-  }
-  
-  if (config.input_audio_format) {
-    session.saved_config.input_audio_format = config.input_audio_format;
-  }
-  
-  if (config.output_audio_format) {
-    session.saved_config.output_audio_format = config.output_audio_format;
-  }
-  
-  if (config.voice) {
-    session.saved_config.voice = config.voice;
-  }
-  
-  if (config.instructions) {
-    session.saved_config.instructions = config.instructions;
-  }
-  
-  if (config.tools) {
-    session.saved_config.tools = config.tools;
-  }
-  
-  // Handle recording configuration
-  if (config.recordCall !== undefined) {
-    session.saved_config.recordCall = config.recordCall;
-  }
+export function setSessionConfig(config: any) {
+  // Store the complete config object
+  session.saved_config = config;
   
   console.log("Updated session configuration:", session.saved_config);
   
   // If we already have an active model connection, update it with the new configuration
   if (isOpen(session.modelConn)) {
     console.log("Updating active OpenAI session with new configuration");
+    
+    const sessionUpdate: OpenAISessionConfig = {
+      modalities: ["audio", "text"],
+      turn_detection: config.turn_detection || { 
+        type: "server_vad",
+        threshold: 0.5,
+        prefix_padding_ms: 300,
+        silence_duration_ms: 500
+      },
+      input_audio_format: "g711_ulaw",
+      output_audio_format: "g711_ulaw",
+      voice: config.voice || "ash",
+      instructions: config.instructions,
+      temperature: config.temperature,
+      max_response_output_tokens: config.max_response_output_tokens,
+      input_audio_transcription: config.input_audio_transcription
+    };
+    
+    // Only add tools if they exist and are not empty
+    if (config.tools && Array.isArray(config.tools) && config.tools.length > 0) {
+      sessionUpdate.tools = config.tools;
+    }
+    
     jsonSend(session.modelConn, {
       type: "session.update",
-      session: {
-        modalities: session.saved_config.modalities || ["text", "audio"],
-        turn_detection: session.saved_config.turn_detection || { 
-          type: "server_vad",
-          threshold: 0.5,
-          prefix_padding_ms: 300,
-          silence_duration_ms: 500
-        },
-        input_audio_format: "g711_ulaw",
-        output_audio_format: "g711_ulaw",
-        voice: session.saved_config.voice || "ash",
-        ...(session.saved_config.instructions && { instructions: session.saved_config.instructions }),
-        ...(session.saved_config.tools && Array.isArray(session.saved_config.tools) && session.saved_config.tools.length > 0 && { tools: session.saved_config.tools }),
-        ...(session.saved_config.temperature !== undefined && { temperature: session.saved_config.temperature }),
-        ...(session.saved_config.max_response_output_tokens !== undefined && { max_response_output_tokens: session.saved_config.max_response_output_tokens }),
-        ...(session.saved_config.input_audio_transcription && { input_audio_transcription: session.saved_config.input_audio_transcription }),
-      },
+      session: sessionUpdate
     });
   }
   

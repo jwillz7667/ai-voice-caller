@@ -70,6 +70,7 @@ model CallLog {
   id              String            @id @default(cuid())
   userId          String?           @map("user_id")
   sessionId       String            @unique @map("session_id")
+  callSid         String?           @unique @map("call_sid")
   phoneNumber     String            @map("phone_number")
   direction       CallDirection
   duration        Int               @default(0) // in seconds
@@ -83,9 +84,11 @@ model CallLog {
   updatedAt       DateTime          @updatedAt @map("updated_at")
   
   user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  recording       Recording?
   
   @@index([userId])
   @@index([sessionId])
+  @@index([callSid])
   @@map("call_logs")
 }
 
@@ -103,4 +106,18 @@ enum CallStatus {
   NO_ANSWER
   BUSY
   CANCELLED
+}
+
+model Recording {
+  id              String            @id @default(cuid())
+  callLogId       String            @unique @map("call_log_id")
+  recordingSid    String            @unique @map("recording_sid")
+  recordingUrl    String            @map("recording_url")
+  duration        Int               // in seconds
+  status          String
+  createdAt       DateTime          @default(now()) @map("created_at")
+  
+  callLog         CallLog           @relation(fields: [callLogId], references: [id], onDelete: Cascade)
+  
+  @@map("recordings")
 }
