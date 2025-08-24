@@ -1,6 +1,103 @@
 import { RawData, WebSocket } from "ws";
 import functions from "./functionHandlers";
 
+// µ-law decoding table
+const MULAW_DECODE_TABLE = new Int16Array([
+  -32124, -31100, -30076, -29052, -28028, -27004, -25980, -24956,
+  -23932, -22908, -21884, -20860, -19836, -18812, -17788, -16764,
+  -15996, -15484, -14972, -14460, -13948, -13436, -12924, -12412,
+  -11900, -11388, -10876, -10364, -9852,  -9340,  -8828,  -8316,
+  -7932,  -7676,  -7420,  -7164,  -6908,  -6652,  -6396,  -6140,
+  -5884,  -5628,  -5372,  -5116,  -4860,  -4604,  -4348,  -4092,
+  -3900,  -3772,  -3644,  -3516,  -3388,  -3260,  -3132,  -3004,
+  -2876,  -2748,  -2620,  -2492,  -2364,  -2236,  -2108,  -1980,
+  -1884,  -1820,  -1756,  -1692,  -1628,  -1564,  -1500,  -1436,
+  -1372,  -1308,  -1244,  -1180,  -1116,  -1052,  -988,   -924,
+  -876,   -844,   -812,   -780,   -748,   -716,   -684,   -652,
+  -620,   -588,   -556,   -524,   -492,   -460,   -428,   -396,
+  -372,   -356,   -340,   -324,   -308,   -292,   -276,   -260,
+  -244,   -228,   -212,   -196,   -180,   -164,   -148,   -132,
+  -120,   -112,   -104,   -96,    -88,    -80,    -72,    -64,
+  -56,    -48,    -40,    -32,    -24,    -16,    -8,     0,
+  32124,  31100,  30076,  29052,  28028,  27004,  25980,  24956,
+  23932,  22908,  21884,  20860,  19836,  18812,  17788,  16764,
+  15996,  15484,  14972,  14460,  13948,  13436,  12924,  12412,
+  11900,  11388,  10876,  10364,  9852,   9340,   8828,   8316,
+  7932,   7676,   7420,   7164,   6908,   6652,   6396,   6140,
+  5884,   5628,   5372,   5116,   4860,   4604,   4348,   4092,
+  3900,   3772,   3644,   3516,   3388,   3260,   3132,   3004,
+  2876,   2748,   2620,   2492,   2364,   2236,   2108,   1980,
+  1884,   1820,   1756,   1692,   1628,   1564,   1500,   1436,
+  1372,   1308,   1244,   1180,   1116,   1052,   988,    924,
+  876,    844,    812,    780,    748,    716,    684,    652,
+  620,    588,    556,    524,    492,    460,    428,    396,
+  372,    356,    340,    324,    308,    292,    276,    260,
+  244,    228,    212,    196,    180,    164,    148,    132,
+  120,    112,    104,    96,     88,     80,     72,     64,
+  56,     48,     40,     32,     24,     16,     8,      0
+]);
+
+// Function to encode linear PCM to µ-law
+function linearToMuLaw(sample: number): number {
+  const MULAW_MAX = 0x1FFF;
+  const MULAW_BIAS = 33;
+  
+  // Get the sign
+  let sign = (sample >> 8) & 0x80;
+  
+  // Get magnitude
+  if (sign !== 0) sample = -sample;
+  
+  // Clip the magnitude
+  if (sample > MULAW_MAX) sample = MULAW_MAX;
+  
+  // Add bias
+  sample = sample + MULAW_BIAS;
+  
+  // Get exponent
+  let exponent = 7;
+  for (let expMask = 0x4000; (sample & expMask) === 0; exponent--, expMask >>= 1) {}
+  
+  // Get mantissa
+  let mantissa = (sample >> (exponent + 3)) & 0x0F;
+  
+  // Encode
+  let mulaw = ~(sign | (exponent << 4) | mantissa);
+  
+  return mulaw & 0xFF;
+}
+
+// Function to amplify µ-law audio
+function amplifyMuLawAudio(base64Audio: string, gainFactor: number): string {
+  try {
+    // Decode base64 to buffer
+    const audioBuffer = Buffer.from(base64Audio, 'base64');
+    const amplifiedBuffer = Buffer.alloc(audioBuffer.length);
+    
+    for (let i = 0; i < audioBuffer.length; i++) {
+      // Decode µ-law to linear PCM
+      const muLawByte = audioBuffer[i];
+      let linearSample = MULAW_DECODE_TABLE[muLawByte];
+      
+      // Amplify the linear sample
+      linearSample = Math.round(linearSample * gainFactor);
+      
+      // Clip to prevent overflow
+      if (linearSample > 32767) linearSample = 32767;
+      if (linearSample < -32768) linearSample = -32768;
+      
+      // Encode back to µ-law
+      amplifiedBuffer[i] = linearToMuLaw(linearSample);
+    }
+    
+    // Encode back to base64
+    return amplifiedBuffer.toString('base64');
+  } catch (error) {
+    console.error("Error amplifying audio:", error);
+    return base64Audio; // Return original if amplification fails
+  }
+}
+
 interface OpenAISessionConfig {
   modalities: string[];
   turn_detection: { 
@@ -367,10 +464,16 @@ function handleModelMessage(data: RawData) {
           streamSid: session.streamSid
         });
 
+        // Amplify the audio before sending
+        let amplifiedAudio = event.delta;
+        if (event.delta) {
+          amplifiedAudio = amplifyMuLawAudio(event.delta, 2.5); // Amplify by 2.5x for stronger volume
+        }
+
         jsonSend(session.twilioConn, {
           event: "media",
           streamSid: session.streamSid,
-          media: { payload: event.delta },
+          media: { payload: amplifiedAudio },
         });
 
         jsonSend(session.twilioConn, {
