@@ -99,6 +99,45 @@ async function handleFunctionCall(item: { name: string; arguments: string }) {
   try {
     console.log("Calling function:", fnDef.schema.name, args);
     const result = await fnDef.handler(args as any);
+    
+    // Parse the result to check for special actions
+    try {
+      const parsedResult = JSON.parse(result);
+      
+      // Handle call transfer
+      if (parsedResult.action === "transfer" && parsedResult.phone_number) {
+        console.log("Initiating call transfer to:", parsedResult.phone_number);
+        
+        // Send transfer instruction to Twilio via TwiML update
+        // Note: Actual Twilio transfer would require updating the call with new TwiML
+        // For now, we'll log the transfer request
+        if (session.twilioConn && session.streamSid) {
+          // In a real implementation, you would make an API call to Twilio to update the call
+          console.log("Transfer requested to:", parsedResult.phone_number);
+          // The AI will announce the transfer based on the returned message
+        }
+      }
+      
+      // Handle DTMF dial tones
+      if (parsedResult.action === "dial" && parsedResult.digits) {
+        console.log("Sending DTMF tones:", parsedResult.digits);
+        
+        if (session.twilioConn && session.streamSid) {
+          // Send DTMF tones to Twilio
+          jsonSend(session.twilioConn, {
+            event: "dtmf",
+            streamSid: session.streamSid,
+            dtmf: {
+              digits: parsedResult.digits
+            }
+          });
+        }
+      }
+    } catch (e) {
+      // Result is not JSON or doesn't contain special actions
+      console.log("Function result is not a special action");
+    }
+    
     return result;
   } catch (err: any) {
     console.error("Error running function:", err);

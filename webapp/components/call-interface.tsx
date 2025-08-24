@@ -35,9 +35,46 @@ const CallInterface = () => {
   >([]);
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [sessionConfig, setSessionConfig] = useState({
-    instructions: "You are Jingle.AI, a helpful voice assistant in a phone call.",
+    instructions: "You are Jingle.AI, a helpful voice assistant in a phone call. You have the ability to transfer calls and dial extensions when needed.",
     voice: "ash", // Updated to use new expressive voice
-    tools: [],
+    tools: [
+      {
+        type: "function",
+        name: "transfer_call",
+        description: "Transfer the current call to another phone number",
+        parameters: {
+          type: "object",
+          properties: {
+            phone_number: { type: "string", description: "Phone number to transfer to (E.164 format)" },
+            reason: { type: "string", description: "Reason for transfer" }
+          },
+          required: ["phone_number"]
+        }
+      },
+      {
+        type: "function",
+        name: "dial_extension",
+        description: "Dial extension numbers or navigate IVR menus",
+        parameters: {
+          type: "object",
+          properties: {
+            digits: { type: "string", description: "Digits to dial (0-9, *, #)" },
+            purpose: { type: "string", description: "Purpose of dialing" }
+          },
+          required: ["digits"]
+        }
+      },
+      {
+        type: "function",
+        name: "get_call_info",
+        description: "Get information about the current call",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: []
+        }
+      }
+    ],
     turn_detection: {
       type: "server_vad" as const,
       threshold: 0.5,
