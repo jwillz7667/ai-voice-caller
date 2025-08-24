@@ -27,6 +27,7 @@ interface Session {
   frontendConn?: WebSocket;
   modelConn?: WebSocket;
   streamSid?: string;
+  callSid?: string;
   saved_config?: OpenAISessionConfig;
   lastAssistantItem?: string;
   responseStartTimestamp?: number;
@@ -49,6 +50,7 @@ export function handleCallConnection(ws: WebSocket, openAIApiKey: string) {
     session.twilioConn = undefined;
     session.modelConn = undefined;
     session.streamSid = undefined;
+    session.callSid = undefined;
     session.lastAssistantItem = undefined;
     session.responseStartTimestamp = undefined;
     session.latestMediaTimestamp = undefined;
@@ -122,15 +124,33 @@ async function handleFunctionCall(item: { name: string; arguments: string }) {
       if (parsedResult.action === "dial" && parsedResult.digits) {
         console.log("Sending DTMF tones:", parsedResult.digits);
         
-        if (session.twilioConn && session.streamSid) {
-          // Send DTMF tones to Twilio
-          jsonSend(session.twilioConn, {
-            event: "dtmf",
-            streamSid: session.streamSid,
-            dtmf: {
-              digits: parsedResult.digits
+        if (session.callSid) {
+          // Use Twilio REST API to send DTMF tones
+          // Import twilio at the top of the file
+          const accountSid = process.env.TWILIO_ACCOUNT_SID;
+          const authToken = process.env.TWILIO_AUTH_TOKEN;
+          
+          if (accountSid && authToken) {
+            try {
+              // We'll need to import twilio client
+              const twilio = require('twilio');
+              const client = twilio(accountSid, authToken);
+              
+              // Send DTMF tones via Twilio API
+              await client.calls(session.callSid)
+                .update({
+                  twiml: `<Response><Play digits="${parsedResult.digits}"/></Response>`
+                });
+              
+              console.log(`DTMF tones '${parsedResult.digits}' sent to call ${session.callSid}`);
+            } catch (error) {
+              console.error("Error sending DTMF tones:", error);
             }
-          });
+          } else {
+            console.error("Twilio credentials not configured for DTMF");
+          }
+        } else {
+          console.error("No call SID available to send DTMF");
         }
       }
     } catch (e) {
@@ -156,9 +176,11 @@ function handleTwilioMessage(data: RawData) {
   switch (msg.event) {
     case "start":
       session.streamSid = msg.start.streamSid;
+      session.callSid = msg.start.callSid; // Capture the call SID from the start message
       session.latestMediaTimestamp = 0;
       session.lastAssistantItem = undefined;
       session.responseStartTimestamp = undefined;
+      console.log("Call started with SID:", session.callSid);
       tryConnectModel();
       break;
     case "media":
@@ -456,6 +478,7 @@ function closeAllConnections() {
     session.frontendConn = undefined;
   }
   session.streamSid = undefined;
+  session.callSid = undefined;
   session.lastAssistantItem = undefined;
   session.responseStartTimestamp = undefined;
   session.latestMediaTimestamp = undefined;
