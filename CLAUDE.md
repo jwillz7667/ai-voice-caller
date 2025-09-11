@@ -14,6 +14,13 @@ npm run build        # Build for production + generate 404.html
 npm run start        # Start production server
 npm run lint         # Run ESLint
 
+# Database Management (Prisma)
+npm run db:migrate   # Run database migrations
+npm run db:push      # Push schema changes without migration
+npm run db:seed      # Seed database with initial data
+npm run db:studio    # Open Prisma Studio GUI
+npm run db:reset     # Reset database (WARNING: deletes all data)
+
 # Single component development
 npm run dev -- --turbo  # Use Turbo mode for faster HMR
 ```
@@ -31,6 +38,8 @@ npm run start:ngrok  # Start with automated ngrok tunnel
 
 # Utilities
 npm run copy-files   # Copy XML templates to dist/
+npm run sync:ngrok   # Watch ngrok URL changes and sync
+npm run update:twilio-webhook  # Update Twilio webhook URL
 ```
 
 ### Full Stack Development
@@ -65,6 +74,8 @@ This is a real-time voice calling application that bridges OpenAI's GPT-4o Realt
 - Stripe integration for credit system
 - Real-time WebSocket connection for live call updates
 - Zustand store for state management
+- Prisma ORM for database operations
+- Call recordings management and playback
 
 ### Key Architectural Patterns
 
@@ -98,9 +109,14 @@ Twilio Audio → WebSocket Server → OpenAI Realtime API
 
 ### Frontend Critical Files
 - `app/page.tsx` - Main dashboard with call controls
-- `app/incoming/page.tsx` - Incoming call configuration
-- `lib/websocket-service.ts` - WebSocket client connection
-- `store/useCallStore.ts` - Zustand store for call state
+- `app/recordings/page.tsx` - Call recordings management page
+- `app/login/page.tsx` - Authentication page
+- `components/call-interface.tsx` - Main call interface component
+- `components/realtime-logs-panel.tsx` - Real-time call logs display
+- `components/session-configuration-panel.tsx` - AI session configuration
+- `lib/auth-context.tsx` - Authentication context provider
+- `lib/handle-realtime-event.ts` - WebSocket event handling
+- `lib/prisma.ts` - Database client configuration
 - `components/ui/` - Shadcn/ui component library
 
 ## Environment Configuration
@@ -120,6 +136,14 @@ NEXT_PUBLIC_WEBSOCKET_URL=ws://localhost:8081  # Development
 # Stripe (Optional - for credits)
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 STRIPE_SECRET_KEY=
+
+# Database (Prisma)
+DATABASE_URL=  # PostgreSQL connection string
+
+# Twilio (for frontend API routes)
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_PHONE_NUMBER=
 ```
 
 **Backend (.env)**
@@ -142,12 +166,27 @@ PUBLIC_URL=  # Ngrok URL in dev, domain in production
 
 ## Development Workflow
 
+### Initial Setup
+1. Install dependencies in both directories:
+   ```bash
+   cd webapp && npm install
+   cd ../websocket-server && npm install
+   ```
+2. Set up database:
+   ```bash
+   cd webapp
+   npm run db:push    # Create database schema
+   npm run db:seed    # Optional: seed with test data
+   ```
+3. Configure environment variables in both `.env` files
+
 ### Setting Up Twilio Webhooks
 1. Start backend with ngrok: `npm run start:ngrok`
 2. Copy the ngrok URL from console output
 3. Update Twilio phone number webhooks:
    - Voice webhook: `https://[ngrok-url]/incoming-call`
    - Status callback: `https://[ngrok-url]/call-status`
+   - Recording status: `https://[ngrok-url]/recording-status`
 
 ### Adding New AI Functions
 1. Create handler in `/websocket-server/src/functions/`
@@ -191,10 +230,26 @@ PUBLIC_URL=  # Ngrok URL in dev, domain in production
 ### Testing Outgoing Calls
 ```bash
 # 1. Ensure backend is running with ngrok
-# 2. Open frontend and login
+# 2. Open frontend and login (create account if needed)
 # 3. Enter phone number with country code (+1234567890)
 # 4. Click "Start Call"
 # 5. Monitor console for WebSocket messages
+```
+
+### Managing Call Recordings
+- Recordings are automatically saved to database when calls complete
+- Access recordings at `/recordings` page in the frontend
+- Recordings include playback controls and download options
+- Database schema managed via Prisma migrations
+
+### Testing Database Changes
+```bash
+# View database in GUI
+cd webapp && npm run db:studio
+
+# Apply schema changes
+npm run db:push  # Quick sync without migration
+npm run db:migrate  # Create and apply migration
 ```
 
 ### Debugging WebSocket Connections
@@ -202,8 +257,10 @@ PUBLIC_URL=  # Ngrok URL in dev, domain in production
 - Verify CORS settings match frontend URL
 - Ensure WebSocket URL protocol matches (ws:// for http, wss:// for https)
 - Check backend logs for connection attempts
+- Monitor real-time events in the Logs panel
 
 ### Updating AI Behavior
 - Modify system instructions in `/websocket-server/src/lib/get-session.ts`
-- Adjust voice settings in OpenAI session configuration
-- Add new tools via the function handler system
+- Adjust voice settings in Session Configuration panel or OpenAI session config
+- Add new tools via the function handler system in `/websocket-server/src/functions/`
+- Available voices can be configured via `OPENAI_VOICES` environment variable

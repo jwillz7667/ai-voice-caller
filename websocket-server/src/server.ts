@@ -58,23 +58,152 @@ app.get("/public-url", (req: express.Request, res: express.Response) => {
   res.json({ publicUrl: PUBLIC_URL });
 });
 
+// Provide available voice list to the frontend
+app.get("/voices", (req: express.Request, res: express.Response) => {
+  try {
+    // Allow override via env: comma-separated or JSON array
+    const envJson = process.env.OPENAI_VOICES_JSON;
+    const envCsv = process.env.OPENAI_VOICES;
+    let voices: string[] | undefined;
+    if (envJson) {
+      try { voices = JSON.parse(envJson); } catch {}
+    }
+    if (!voices && envCsv) {
+      voices = envCsv.split(",").map((v) => v.trim()).filter(Boolean);
+    }
+    // Default curated set; dedupe and sort alphabetically
+    const defaultVoices = [
+      "alloy",
+      "ash",
+      "ballad",
+      "cedar",
+      "coral",
+      "echo",
+      "marin",
+      "sage",
+      "shimmer",
+      "verse",
+    ];
+    const set = new Set([...(voices || []), ...defaultVoices]);
+    const merged = Array.from(set).sort((a, b) => a.localeCompare(b));
+    res.json({ voices: merged, source: voices ? 'env' : 'default', updatedAt: new Date().toISOString() });
+  } catch (e: any) {
+    res.status(200).json({ voices: ["alloy","ash","ballad","coral","echo","sage","shimmer","verse"], source: 'default', updatedAt: new Date().toISOString() });
+  }
+});
+
 app.all("/twiml", (req: express.Request, res: express.Response) => {
-  const wsUrl = new URL(PUBLIC_URL);
-  wsUrl.protocol = "wss:";
-  wsUrl.pathname = `/call`;
+  // Compute the WebSocket URL for Twilio Media Streams
+  // Priority: current request host; fallback to WS_PUBLIC_URL only if host missing
+  const host = (req.headers['x-forwarded-host'] as string) || req.headers.host || '';
+  let wsUrlStr = '';
+  if (host) {
+    wsUrlStr = `wss://${host}/call`;
+  } else if (process.env.WS_PUBLIC_URL) {
+    try { wsUrlStr = new URL('/call', process.env.WS_PUBLIC_URL).toString(); } catch {}
+  }
   
-  // Enable recording by default
-  const recordCall = true;  // Always record calls
-  const recordingStatusUrl = new URL("/recording-status", PUBLIC_URL).toString();
+  // Enable recording based on last saved session config (default: true)
+  let recordCall = true;
+  try {
+    // Prefer explicit user configuration if available
+    const saved = (sessionManager as any).getSavedConfig?.();
+    if (saved && typeof saved.recordCall === 'boolean') {
+      recordCall = saved.recordCall;
+    }
+  } catch (e) {
+    // Fallback to default on any error
+    console.warn('Could not read saved session config for recording preference:', e);
+  }
+  // Build callback URLs relative to current request host for robustness
+  const cbBase = host ? `https://${host}` : (PUBLIC_URL || '');
+  const recordingStatusUrl = cbBase ? new URL("/recording-status", cbBase).toString() : '';
   
   // Use Handlebars to render the template with all variables
   const twimlContent = twimlHandlebars({
-    WS_URL: wsUrl.toString(),
+    WS_URL: wsUrlStr,
     RECORD_CALL: recordCall,
     RECORDING_STATUS_URL: recordingStatusUrl
   });
   
+  // Respond to Twilio immediately with TwiML
   res.type("text/xml").send(twimlContent);
+
+  // If recording is enabled, start call recording via REST API (supported way)
+  try {
+    const callSid = (req.body && (req.body as any).CallSid) || (req.query && (req.query as any).CallSid) || undefined;
+    if (recordCall && callSid && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+      const twilioClient = require("twilio")(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+      twilioClient.calls(callSid).recordings
+        .create({
+          recordingStatusCallback: recordingStatusUrl,
+        })
+        .then(() => {
+          console.log(`Started recording for CallSid=${callSid}`);
+        })
+        .catch((err: any) => {
+          console.error("Failed to start call recording:", err?.message || err);
+        });
+    }
+  } catch (e: any) {
+    console.error("Error attempting to start call recording:", e?.message || e);
+  }
+});
+
+// Optional: TwiML endpoint to dial a SIP URI (e.g., OpenAI Realtime SIP)
+// Requires OPENAI_SIP_URI env var like: sip:realtime.openai.com:5060;transport=tls?model=gpt-realtime&voice=verse
+app.all("/twiml-sip", (req: express.Request, res: express.Response) => {
+  const sipUri = process.env.OPENAI_SIP_URI;
+  if (!sipUri) {
+    return res
+      .status(500)
+      .type("text/plain")
+      .send("Missing OPENAI_SIP_URI env var for SIP dialing");
+  }
+
+  // Respect recording preference similar to /twiml
+  let recordCall = true;
+  try {
+    const saved = (sessionManager as any).getSavedConfig?.();
+    if (saved && typeof saved.recordCall === 'boolean') {
+      recordCall = saved.recordCall;
+    }
+  } catch {}
+  const host = (req.headers['x-forwarded-host'] as string) || req.headers.host || '';
+  const cbBase = host ? `https://${host}` : (PUBLIC_URL || '');
+  const statusUrl = cbBase ? new URL("/sip-status", cbBase).toString() : '';
+  const recordingStatusUrl = cbBase ? new URL("/recording-status", cbBase).toString() : '';
+  // For SIP dialing, TwiML <Dial> supports call recording via the 'record' attribute
+  const recordAttr = recordCall
+    ? ` record=\"record-from-answer\" recordingStatusCallback=\"${recordingStatusUrl}\"`
+    : '';
+  const twiml = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Response>\n  <Dial action=\"${statusUrl}\" method=\"POST\"${recordAttr}>\n    <Sip>${sipUri}</Sip>\n  </Dial>\n</Response>`;
+  res.type("text/xml").send(twiml);
+});
+
+// SIP status callback to observe Twilio <Dial> lifecycle for SIP calls
+app.post("/sip-status", express.urlencoded({ extended: false }), (req: express.Request, res: express.Response) => {
+  try {
+    console.log("SIP status callback:", req.body);
+  } catch (e) {
+    console.error("Error logging SIP status:", e);
+  }
+  res.type("text/xml").send("<Response/>");
+});
+
+// Helper endpoint to compute a SIP URI using the latest saved config (model, voice)
+app.get("/sip-uri", (req: express.Request, res: express.Response) => {
+  try {
+    const saved = (sessionManager as any).getSavedConfig?.() || {};
+    const model = (saved.model || process.env.OPENAI_MODEL || 'gpt-realtime') as string;
+    const voice = (saved.voice || 'verse') as string;
+    const base = 'sip:realtime.openai.com:5060;transport=tls';
+    const params = new URLSearchParams({ model, voice });
+    const uri = `${base}?${params.toString()}`;
+    res.json({ uri, model, voice });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || 'Failed to compute SIP URI' });
+  }
 });
 
 // New endpoint to list available tools (schemas)
@@ -156,8 +285,8 @@ app.post("/session-config", express.json(), (req: express.Request, res: express.
   }
 });
 
-// Add call status callback endpoint
-app.post("/call-status", express.json(), (req, res) => {
+// Add call status callback endpoint (Twilio posts x-www-form-urlencoded)
+app.all("/call-status", express.urlencoded({ extended: false }), (req, res) => {
   try {
     console.log("Call status update received:", req.body);
     
@@ -169,8 +298,8 @@ app.post("/call-status", express.json(), (req, res) => {
   }
 });
 
-// Add recording status callback endpoint
-app.post("/recording-status", express.json(), async (req, res) => {
+// Add recording status callback endpoint (Twilio posts x-www-form-urlencoded)
+app.all("/recording-status", express.urlencoded({ extended: false }), async (req, res) => {
   try {
     console.log("Recording status update received:", req.body);
     

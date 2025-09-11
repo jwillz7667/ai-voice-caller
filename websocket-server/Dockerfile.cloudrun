@@ -1,0 +1,45 @@
+# Optimized Dockerfile for Google Cloud Run
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Install all dependencies for building
+RUN npm ci
+
+# Copy source code
+COPY src/ ./src/
+
+# Build TypeScript
+RUN npm run build
+
+# Production stage
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files and install production dependencies only
+COPY package*.json ./
+RUN npm ci --only=production && \
+    npm cache clean --force
+
+# Copy built files from builder
+COPY --from=builder /app/dist ./dist
+
+# Cloud Run expects PORT env variable
+ENV PORT=8080
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+USER nodejs
+
+# Expose port (Cloud Run uses 8080 by default)
+EXPOSE 8080
+
+# Start the application
+CMD ["node", "dist/server.js"]

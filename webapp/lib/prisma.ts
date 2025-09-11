@@ -7,14 +7,16 @@ declare global {
 }
 
 const prismaClientSingleton = () => {
-  return new PrismaClient({
+  const baseOptions: any = {
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL,
-      },
-    },
-  });
+  };
+  // Only pass datasources override if DATABASE_URL is provided; otherwise let Prisma use defaults
+  if (process.env.DATABASE_URL) {
+    baseOptions.datasources = {
+      db: { url: process.env.DATABASE_URL },
+    };
+  }
+  return new PrismaClient(baseOptions);
 };
 
 export const prisma = global.prisma || prismaClientSingleton();

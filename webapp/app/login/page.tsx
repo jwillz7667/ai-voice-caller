@@ -1,13 +1,20 @@
-import { Metadata } from 'next';
+"use client";
+ 
+// Metadata removed for client component compatibility
 import CustomLoginForm from '@/components/auth/CustomLoginForm';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-export const metadata: Metadata = {
-  title: 'Sign In - Jingle.AI',
-  description: 'Sign in to your Jingle.AI account',
-};
+// (Optional) Add SEO in a server layout if needed
 
 export default function LoginPage() {
+  const router = useRouter();
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_AUTH_BYPASS === 'true') {
+      router.replace('/dashboard');
+    }
+  }, [router]);
   return (
     <div className="container max-w-5xl py-12">
       <div className="flex flex-col items-center justify-center min-h-[60vh]">

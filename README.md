@@ -1,6 +1,6 @@
 # Jingle.AI - Powered by OpenAI & Twilio
 
-A real-time voice calling application that integrates OpenAI's GPT-4o Realtime API with Twilio's phone calling capabilities to create an AI voice assistant that can make and receive phone calls.
+A real-time voice calling application that integrates OpenAI's Realtime API with Twilio's phone calling capabilities to create an AI voice assistant that can make and receive phone calls.
 
 ![Jingle.AI Call Dashboard](screenshots/call-dashboard.png)
 
@@ -39,7 +39,7 @@ The system consists of three main components:
 - Node.js (v18 or later)
 - npm
 - A Twilio account with a phone number capable of voice calls
-- An OpenAI API key with access to GPT-4o Realtime preview model
+- An OpenAI API key with access to the Realtime API (model: gpt-realtime)
 - ngrok for exposing your local server to the internet
 
 ### Setup Steps
@@ -78,11 +78,19 @@ The system consists of three main components:
 
    **websocket-server/.env.example**
    ```
+   PORT=8081
+   PUBLIC_URL=your_backend_ngrok_url
+   WEBAPP_URL=http://localhost:3000
+   ALLOWED_ORIGIN=
+
    # OpenAI
    OPENAI_API_KEY=your_openai_api_key
+  # Optional override (WebSocket): wss://api.openai.com/v1/realtime?model=gpt-realtime
+   OPENAI_MODEL_URL=
 
-   # Backend ngrok url (same ngrok url used in webapp/.env)
-   PUBLIC_URL=your_backend_ngrok_url
+   # Optional: OpenAI Realtime SIP target (advanced)
+  # e.g., sip:realtime.openai.com:5060;transport=tls?model=gpt-realtime&voice=verse
+   OPENAI_SIP_URI=
    ```
 
    Note: The project uses a centralized environment variables system to ensure consistency between components. Make sure both `.env` files are properly configured.
@@ -139,6 +147,18 @@ The frontend (Next.js application) is configured for Netlify deployment:
 5. **Update Twilio Configuration**
    - Update your Twilio webhook URL to point to your deployed WebSocket server
 
+### Optional: SIP Dialing (Preview)
+- If you have access to OpenAI Realtime SIP, set `OPENAI_SIP_URI` in `websocket-server/.env` and configure Twilio to use `https://your-ngrok-url/twiml-sip` as the Voice Webhook. This will <Dial><Sip> directly to the model.
+- The server exposes `POST /sip-status` to log <Dial> status callbacks and `GET /sip-uri` to compute a SIP URI using your latest saved voice/model configuration.
+
+### Recording
+- Calls can be recorded from Twilio. For WebSocket streaming (`/twiml`), the server starts/stops recordings via Twilio's REST API using the current `recordCall` setting and posts status updates to `/recording-status`.
+- For SIP dialing (`/twiml-sip`), recording is enabled using the supported `<Dial record="record-from-answer" recordingStatusCallback="...">` attributes.
+
+### Models & Voices
+- Choose the realtime model and voice from the Session Configuration panel in the webapp. Custom values are supported for both model and voice.
+- Default realtime model is `gpt-realtime`. Server resolves the WebSocket endpoint from either `model_url` (exact URL), `model` (name), `OPENAI_MODEL_URL`, or a safe default.
+
 ### Production Considerations
 
 When deploying to production, consider:
@@ -178,7 +198,7 @@ When deploying to production, consider:
 ### Common Issues
 
 1. **No audio from AI assistant**
-   - Check the OpenAI API key has access to GPT-4o Realtime model
+   - Check the OpenAI API key has access to the gpt-realtime model
    - Verify Twilio webhook is correctly set to your ngrok URL + "/twiml"
    - Ensure audio format is set correctly (g711_ulaw_8khz)
 
@@ -231,7 +251,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Acknowledgements
 
-- [OpenAI](https://openai.com/) for the GPT-4o Realtime API
+- [OpenAI](https://openai.com/) for the Realtime API
 - [Twilio](https://www.twilio.com/) for the Voice API
 - [Next.js](https://nextjs.org/) for the frontend framework
 - [Express](https://expressjs.com/) for the backend server

@@ -1,24 +1,32 @@
 [build]
-  base = "webapp"
   command = "npm run build"
-  publish = "out"
+  publish = ".next"
 
 [build.environment]
   NODE_VERSION = "18"
 
-# Single page app handling
+# Enable Next.js Runtime for server-side features
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Redirect rules
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
   status = 200
 
-# Redirect from /index.html to /
-[[redirects]]
-  from = "/index.html"
-  to = "/"
-  status = 301
-  force = false
+# Headers for security and performance
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "no-referrer-when-downgrade"
 
-# Support for environment variables in runtime
-[functions]
-  directory = "netlify/functions"
+# Environment variable configuration
+[context.production.environment]
+  NEXT_PUBLIC_WEBSOCKET_URL = "wss://ai-voice-caller-public-995705962018.us-central1.run.app"
+  BACKEND_URL = "https://ai-voice-caller-public-995705962018.us-central1.run.app"
+  PUBLIC_URL = "https://ai-voice-caller-public-995705962018.us-central1.run.app"
+  NEXT_PUBLIC_AUTH_BYPASS = "true"

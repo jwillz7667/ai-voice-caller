@@ -116,6 +116,12 @@ export default function handleRealtimeEvent(
       break;
     }
 
+    case "conversation.item.deleted": {
+      const { item_id } = ev;
+      setItems((prev) => prev.filter((m) => m.id !== item_id));
+      break;
+    }
+
     case "conversation.item.input_audio_transcription.completed": {
       // Update the user message with the final transcript
       const { item_id, transcript } = ev;
@@ -168,6 +174,7 @@ export default function handleRealtimeEvent(
       break;
     }
 
+    case "response.output_audio_transcript.delta":
     case "response.audio_transcript.delta": {
       // Streaming transcript text (assistant)
       const { item_id, delta, output_index } = ev;
@@ -199,6 +206,11 @@ export default function handleRealtimeEvent(
       break;
     }
 
+    case "response.output_audio_transcript.done": {
+      // Nothing specific needed; the streaming delta has already populated text.
+      break;
+    }
+
     case "response.output_item.done": {
       const { item } = ev;
       if (item.type === "function_call") {
@@ -222,6 +234,101 @@ export default function handleRealtimeEvent(
           }),
         ]);
       }
+      break;
+    }
+
+    // Function/tool args streaming
+    case "response.function_call_arguments.delta":
+    case "response.tool_call_arguments.delta": {
+      const { call_id, delta } = ev;
+      // Append visible streaming args as a single assistant line for clarity
+      setItems((prev) => [
+        ...prev,
+        createNewItem({
+          id: `args_${call_id}_${Date.now()}`,
+          type: "message",
+          role: "assistant",
+          content: [{ type: "text", text: `args: ${delta}` }],
+          status: "running",
+        }),
+      ]);
+      break;
+    }
+    case "response.function_call_arguments.done":
+    case "response.tool_call_arguments.done": {
+      // No extra UI action; the function_call item will be shown and tool_result follows
+      break;
+    }
+
+    // MCP tool calls and list tools
+    case "response.mcp_call.in_progress": {
+      setItems((prev) => [
+        ...prev,
+        createNewItem({
+          id: ev.item_id || `mcp_${Date.now()}`,
+          type: "message",
+          role: "assistant",
+          content: [{ type: "text", text: "MCP call in progress…" }],
+          status: "running",
+        }),
+      ]);
+      break;
+    }
+    case "response.mcp_call.completed": {
+      // Mark completion with a simple message entry
+      setItems((prev) => [
+        ...prev,
+        createNewItem({
+          id: `mcp_done_${Date.now()}`,
+          type: "message",
+          role: "assistant",
+          content: [{ type: "text", text: "MCP call completed" }],
+          status: "completed",
+        }),
+      ]);
+      break;
+    }
+    case "response.mcp_call_arguments.delta": {
+      // Stream mcp args as text for visibility
+      setItems((prev) => [
+        ...prev,
+        createNewItem({
+          id: `mcp_args_${Date.now()}`,
+          type: "message",
+          role: "assistant",
+          content: [{ type: "text", text: `mcp args: ${ev.delta}` }],
+          status: "running",
+        }),
+      ]);
+      break;
+    }
+    case "response.mcp_call_arguments.done": {
+      break;
+    }
+    case "mcp_list_tools.in_progress": {
+      setItems((prev) => [
+        ...prev,
+        createNewItem({
+          id: `mcp_list_${Date.now()}`,
+          type: "message",
+          role: "assistant",
+          content: [{ type: "text", text: "Listing MCP tools…" }],
+          status: "running",
+        }),
+      ]);
+      break;
+    }
+    case "mcp_list_tools.completed": {
+      setItems((prev) => [
+        ...prev,
+        createNewItem({
+          id: `mcp_list_done_${Date.now()}`,
+          type: "message",
+          role: "assistant",
+          content: [{ type: "text", text: "MCP tools listing completed" }],
+          status: "completed",
+        }),
+      ]);
       break;
     }
 

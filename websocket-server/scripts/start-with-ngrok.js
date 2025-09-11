@@ -141,43 +141,76 @@ async function start() {
     });
     
     // Function to update the .env file with the new PUBLIC_URL
+    function upsertEnvVar(filePath, key, value) {
+      try {
+        if (!fs.existsSync(filePath)) return;
+        let envContent = fs.readFileSync(filePath, 'utf8');
+        const line = `${key}=${value}`;
+        const re = new RegExp(`^${key}=.*$`, 'm');
+        if (re.test(envContent)) {
+          envContent = envContent.replace(re, line);
+        } else {
+          if (envContent && !/\n$/.test(envContent)) envContent += "\n";
+          envContent += line + "\n";
+        }
+        fs.writeFileSync(filePath, envContent);
+      } catch (e) {
+        console.error(`Failed writing ${key} to ${filePath}:`, e.message);
+      }
+    }
+
     function updateEnvFile(filePath, url) {
       try {
         if (!fs.existsSync(filePath)) {
           console.log(`Warning: ${filePath} does not exist, skipping update`);
           return;
         }
-
-        // Read the current .env file
-        let envContent = fs.readFileSync(filePath, 'utf8');
-        
-        // Check if PUBLIC_URL already exists
-        if (envContent.includes('PUBLIC_URL=')) {
-          // Replace the existing PUBLIC_URL value
-          envContent = envContent.replace(
-            /PUBLIC_URL=.*/,
-            `PUBLIC_URL=${url}`
-          );
-        } else {
-          // Add PUBLIC_URL if it doesn't exist
-          envContent += `\nPUBLIC_URL=${url}\n`;
-        }
-        
-        // Write the updated content back to the .env file
-        fs.writeFileSync(filePath, envContent);
-        console.log(`✅ Updated ${filePath} with new PUBLIC_URL: ${url}`);
+        upsertEnvVar(filePath, 'PUBLIC_URL', url);
+        console.log(`✅ Updated ${filePath} PUBLIC_URL: ${url}`);
       } catch (error) {
         console.error(`Error updating ${filePath}:`, error);
       }
     }
 
     // Function to update both .env files
+    function readEnv(filePath) {
+      try {
+        const text = fs.readFileSync(filePath, 'utf8');
+        const obj = {};
+        text.split(/\r?\n/).forEach((l) => {
+          const m = l.match(/^([^#=]+)=(.*)$/);
+          if (m) obj[m[1].trim()] = m[2].trim();
+        });
+        return obj;
+      } catch {
+        return {};
+      }
+    }
+
     function updateAllEnvFiles(url) {
       // Update websocket-server .env
       updateEnvFile(WEBSOCKET_ENV_PATH, url);
-      
-      // Update webapp .env if it exists
-      updateEnvFile(WEBAPP_ENV_PATH, url);
+      const wssBase = url.replace(/^http/, 'ws').replace(/^https/, 'wss');
+      upsertEnvVar(WEBSOCKET_ENV_PATH, 'WS_PUBLIC_URL', wssBase);
+
+      // Determine webapp origin to allow in CORS
+      const webappEnv = readEnv(WEBAPP_ENV_PATH);
+      const webappOrigin = webappEnv.PUBLIC_URL || process.env.WEBAPP_URL || 'http://localhost:3000';
+      upsertEnvVar(WEBSOCKET_ENV_PATH, 'ALLOWED_ORIGIN', webappOrigin);
+      console.log(`✅ Updated ${WEBSOCKET_ENV_PATH} ALLOWED_ORIGIN: ${webappOrigin}`);
+
+      // Update webapp .env for both HTTP backend and WS logs
+      try {
+        const u = new URL(url);
+        const wsLogs = `wss://${u.host}/logs`;
+        upsertEnvVar(WEBAPP_ENV_PATH, 'NEXT_PUBLIC_WEBSOCKET_URL', wsLogs);
+        upsertEnvVar(WEBAPP_ENV_PATH, 'BACKEND_URL', `https://${u.host}`);
+        upsertEnvVar(WEBAPP_ENV_PATH, 'PUBLIC_URL', `https://${u.host}`);
+        console.log(`✅ Updated ${WEBAPP_ENV_PATH} NEXT_PUBLIC_WEBSOCKET_URL: ${wsLogs}`);
+        console.log(`✅ Updated ${WEBAPP_ENV_PATH} BACKEND_URL & PUBLIC_URL: https://${u.host}`);
+      } catch (e) {
+        console.warn('Could not compute URLs from', url, e.message);
+      }
     }
 
     // Modified function to start ngrok using spawn
@@ -211,6 +244,13 @@ async function start() {
               
               // Update all .env files with the new URL
               updateAllEnvFiles(ngrokUrl);
+              // Kick Twilio webhook updater
+              try {
+                const child = spawn('node', [path.join(__dirname, 'update-twilio-webhook.js')], { stdio: 'inherit' });
+                child.on('close', (code) => console.log('Twilio webhook update exited with', code));
+              } catch (e) {
+                console.warn('Failed to spawn update-twilio-webhook:', e.message);
+              }
               
               resolve(ngrokUrl);
             }
@@ -255,6 +295,12 @@ async function start() {
                       
                       // Update all .env files with the new URL
                       updateAllEnvFiles(ngrokUrl);
+                      try {
+                        const child = spawn('node', [path.join(__dirname, 'update-twilio-webhook.js')], { stdio: 'inherit' });
+                        child.on('close', (code) => console.log('Twilio webhook update exited with', code));
+                      } catch (e) {
+                        console.warn('Failed to spawn update-twilio-webhook:', e.message);
+                      }
                       
                       resolve(ngrokUrl);
                     } else {

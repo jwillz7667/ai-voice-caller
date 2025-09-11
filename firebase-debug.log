@@ -1,0 +1,63 @@
+[debug] [2025-09-11T23:14:01.214Z] ----------------------------------------------------------------------
+[debug] [2025-09-11T23:14:01.216Z] Command:       /opt/homebrew/Cellar/node/23.7.0/bin/node /Users/willz/.npm-global/bin/firebase init hosting --project neural-aquifer-467003-m0
+[debug] [2025-09-11T23:14:01.216Z] CLI Version:   14.16.0
+[debug] [2025-09-11T23:14:01.216Z] Platform:      darwin
+[debug] [2025-09-11T23:14:01.216Z] Node Version:  v23.7.0
+[debug] [2025-09-11T23:14:01.217Z] Time:          Thu Sep 11 2025 18:14:01 GMT-0500 (Central Daylight Time)
+[debug] [2025-09-11T23:14:01.217Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-09-11T23:14:01.218Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2025-09-11T23:14:01.235Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-09-11T23:14:01.235Z] > authorizing via signed-in user (admin@dankdealsmn.com)
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  /Users/willz/ai/ai-voice-caller-1
+
+[info] 
+=== Project Setup
+[info] 
+[info] First, let's associate this project directory with a Firebase project.
+[info] You can create multiple project aliases by running firebase use --add, 
+[info] but for now we'll just set up a default project.
+[info] 
+[debug] [2025-09-11T23:14:01.240Z] Using project from CLI flag: neural-aquifer-467003-m0
+[debug] [2025-09-11T23:14:01.241Z] Checked if tokens are valid: false, expires at: 1757269790417
+[debug] [2025-09-11T23:14:01.241Z] Checked if tokens are valid: false, expires at: 1757269790417
+[debug] [2025-09-11T23:14:01.241Z] > refreshing access token with scopes: []
+[debug] [2025-09-11T23:14:01.242Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-09-11T23:14:01.242Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-09-11T23:14:01.510Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 400
+[debug] [2025-09-11T23:14:01.511Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2025-09-11T23:14:01.511Z] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2025-09-11T23:14:01.606Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[debug] [2025-09-11T23:14:01.606Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}
+[debug] [2025-09-11T23:14:01.809Z] FirebaseError: Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+    at invalidCredentialError (/Users/willz/.npm-global/lib/node_modules/firebase-tools/lib/auth.js:167:12)
+    at refreshTokens (/Users/willz/.npm-global/lib/node_modules/firebase-tools/lib/auth.js:591:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async getAccessToken (/Users/willz/.npm-global/lib/node_modules/firebase-tools/lib/apiv2.js:42:18)
+    at async Client.addAuthHeader (/Users/willz/.npm-global/lib/node_modules/firebase-tools/lib/apiv2.js:169:21)
+    at async Client.request (/Users/willz/.npm-global/lib/node_modules/firebase-tools/lib/apiv2.js:120:34)
+    at async getFirebaseProject (/Users/willz/.npm-global/lib/node_modules/firebase-tools/lib/management/projects.js:345:21)
+    at async Object.doSetup (/Users/willz/.npm-global/lib/node_modules/firebase-tools/lib/init/features/project.js:76:27)
+    at async init (/Users/willz/.npm-global/lib/node_modules/firebase-tools/lib/init/index.js:68:13)
+    at async Command.initAction [as actionFn] (/Users/willz/.npm-global/lib/node_modules/firebase-tools/lib/commands/init.js:214:5)
+[error] 
+[error] Error: Failed to get Firebase project neural-aquifer-467003-m0. Please make sure the project exists and your account has permission to access it.

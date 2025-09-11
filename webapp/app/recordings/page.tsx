@@ -201,7 +201,7 @@ export default function RecordingsPage() {
                       <Badge variant={recording.callLog.direction === 'outbound' ? 'default' : 'secondary'}>
                         {recording.callLog.direction}
                       </Badge>
-                      <Badge variant={recording.status === 'completed' ? 'success' : 'secondary'}>
+                      <Badge variant={recording.status === 'completed' ? 'default' : 'secondary'}>
                         {recording.status}
                       </Badge>
                     </div>

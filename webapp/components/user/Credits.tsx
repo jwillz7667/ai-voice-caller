@@ -13,7 +13,7 @@ const CREDIT_PACKAGES = [
 ];
 
 export default function Credits() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const { credits } = useUserStore();
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -67,7 +67,7 @@ export default function Credits() {
           </p>
         </div>
         <div className="mb-4">
-          <div className="text-4xl font-bold text-primary">{profile?.credits || 0}</div>
+          <div className="text-4xl font-bold text-primary">{typeof credits === 'number' ? credits : (user?.credits || 0)}</div>
           <p className="text-sm text-muted-foreground mt-1">Available credits</p>
         </div>
         <div className="text-sm text-muted-foreground">

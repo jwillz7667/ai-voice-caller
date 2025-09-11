@@ -16,10 +16,31 @@ import { toolTemplates } from "@/lib/tool-templates";
 import { ToolConfigurationDialog } from "./tool-configuration-dialog";
 import { BackendTag } from "./backend-tag";
 import { useBackendTools } from "@/lib/use-backend-tools";
+import { useBackendVoices } from "@/lib/use-backend-voices";
+
+interface SessionConfiguration {
+  instructions: string;
+  voice: string;
+  model: string;
+  prompt?: { id: string; version?: string };
+  tools: string[];
+  recordCall: boolean;
+  turn_detection: {
+    type: 'server_vad' | 'semantic_vad' | 'none';
+    threshold?: number;
+    prefix_padding_ms?: number;
+    silence_duration_ms?: number;
+  };
+  temperature: number;
+  input_audio_transcription: {
+    model: 'whisper-1' | 'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe';
+  };
+  // Note: legacy/unsupported fields removed to mirror Realtime spec
+}
 
 interface SessionConfigurationPanelProps {
   callStatus: string;
-  onSave: (config: any) => void;
+  onSave: (config: SessionConfiguration) => void;
 }
 
 const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
@@ -30,6 +51,11 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
     "You are a helpful assistant in a phone call."
   );
   const [voice, setVoice] = useState("ash");
+  const [customVoice, setCustomVoice] = useState("");
+  const [model, setModel] = useState<string>("gpt-realtime");
+  const [customModel, setCustomModel] = useState("");
+  const [promptId, setPromptId] = useState<string>("");
+  const [promptVersion, setPromptVersion] = useState<string>("");
   const [tools, setTools] = useState<string[]>([]);
   const [recordCall, setRecordCall] = useState(false);
   const [vadType, setVadType] = useState<'server_vad' | 'semantic_vad' | 'none'>('server_vad');
@@ -45,13 +71,25 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   >("idle");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Custom hook to fetch backend tools every 3 seconds
+  // Removed legacy UI controls: noise reduction, penalties, audio sample rate/channels
+
+  // Custom hooks: fetch backend tools and voices
   const backendTools = useBackendTools("http://localhost:8081/tools", 3000);
+  const backendVoices = useBackendVoices("http://localhost:8081/voices", 60000);
+
+  // Merge default and backend-provided voices
+  const defaultVoices = ["alloy","ash","ballad","cedar","coral","echo","marin","sage","shimmer","verse"];
+  const mergedVoices = Array.from(new Set([...(backendVoices || []), ...defaultVoices]));
+  // Ensure current selection remains selectable even if not in the list
+  if (voice && !mergedVoices.includes(voice) && voice !== "__custom__") {
+    mergedVoices.unshift(voice);
+  }
 
   // Track changes to determine if there are unsaved modifications
   useEffect(() => {
     setHasUnsavedChanges(true);
-  }, [instructions, voice, tools, recordCall, vadType, temperature, transcriptionModel]);
+  }, [instructions, voice, tools, recordCall, vadType, temperature, transcriptionModel, model,
+      promptId, promptVersion]);
 
   // Reset save status after a delay when saved
   useEffect(() => {
@@ -66,9 +104,11 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   const handleSave = async () => {
     setSaveStatus("saving");
     try {
-      await onSave({
+      const config: SessionConfiguration = {
         instructions,
         voice,
+        model,
+        ...(promptId.trim() && { prompt: { id: promptId.trim(), ...(promptVersion.trim() && { version: promptVersion.trim() }) } }),
         tools: tools.map((tool) => JSON.parse(tool)),
         recordCall,
         turn_detection: {
@@ -83,7 +123,11 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
         input_audio_transcription: {
           model: transcriptionModel
         }
-      });
+      };
+
+      // Legacy/unsupported configuration removed to mirror Realtime spec
+
+      await onSave(config);
       setSaveStatus("saved");
       setHasUnsavedChanges(false);
     } catch (error) {
@@ -116,7 +160,8 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   const handleDialogSave = () => {
     try {
       JSON.parse(editingSchemaStr);
-    } catch {
+    } catch (parseError) {
+      console.error("Invalid JSON:", parseError);
       return;
     }
     const newTools = [...tools];
@@ -133,9 +178,9 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
     setSelectedTemplate(val);
 
     // Determine if the selected template is from local or backend
-    let templateObj =
+    const templateObj =
       toolTemplates.find((t) => t.name === val) ||
-      backendTools.find((t: any) => t.name === val);
+      backendTools.find((t: { name: string }) => t.name === val);
 
     if (templateObj) {
       setEditingSchemaStr(JSON.stringify(templateObj, null, 2));
@@ -163,7 +208,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   };
 
   const isBackendTool = (name: string): boolean => {
-    return backendTools.some((t: any) => t.name === name);
+    return backendTools.some((t: { name: string }) => t.name === name);
   };
 
   return (
@@ -205,28 +250,86 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
               />
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none">OpenAI Prompt ID</label>
+                <input
+                  type="text"
+                  placeholder="pmpt_..."
+                  className="w-full border rounded px-2 py-1 text-sm"
+                  value={promptId}
+                  onChange={(e) => setPromptId(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">Optional: use a saved Prompt (pmpt_*)</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none">Prompt Version</label>
+                <input
+                  type="text"
+                  placeholder="e.g., 1"
+                  className="w-full border rounded px-2 py-1 text-sm"
+                  value={promptVersion}
+                  onChange={(e) => setPromptVersion(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">Optional: omit to use latest</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none">Realtime Model</label>
+              <Select value={model} onValueChange={(v: string) => setModel(v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select model" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gpt-realtime">gpt-realtime</SelectItem>
+                  <SelectItem value="__custom__">Other (custom)</SelectItem>
+                </SelectContent>
+              </Select>
+              {model === "__custom__" && (
+                <input
+                  type="text"
+                  placeholder="Enter custom model (e.g., gpt-realtime-2025-xx)"
+                  className="mt-2 w-full border rounded px-2 py-1 text-sm"
+                  value={customModel}
+                  onChange={(e) => setCustomModel(e.target.value)}
+                  onBlur={() => {
+                    if (customModel.trim()) setModel(customModel.trim());
+                  }}
+                />
+              )}
+            </div>
+
             <div className="space-y-2">
               <label className="text-sm font-medium leading-none">Voice</label>
-              <Select value={voice} onValueChange={setVoice}>
+              <Select value={voice} onValueChange={(v: string) => setVoice(v)}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select voice" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="alloy">alloy (Classic)</SelectItem>
-                  <SelectItem value="ash">ash (Expressive)</SelectItem>
-                  <SelectItem value="ballad">ballad (Expressive)</SelectItem>
-                  <SelectItem value="coral">coral (Expressive)</SelectItem>
-                  <SelectItem value="echo">echo (Classic)</SelectItem>
-                  <SelectItem value="sage">sage (Expressive)</SelectItem>
-                  <SelectItem value="shimmer">shimmer (Classic)</SelectItem>
-                  <SelectItem value="verse">verse (Expressive)</SelectItem>
+                  {mergedVoices.map((v) => (
+                    <SelectItem key={v} value={v}>{v}</SelectItem>
+                  ))}
+                  <SelectItem value="__custom__">Other (custom)</SelectItem>
                 </SelectContent>
               </Select>
+              {voice === "__custom__" && (
+                <input
+                  type="text"
+                  placeholder="Enter custom voice id (e.g., verse-v2)"
+                  className="mt-2 w-full border rounded px-2 py-1 text-sm"
+                  value={customVoice}
+                  onChange={(e) => setCustomVoice(e.target.value)}
+                  onBlur={() => {
+                    if (customVoice.trim()) setVoice(customVoice.trim());
+                  }}
+                />
+              )}
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium leading-none">Voice Activity Detection</label>
-              <Select value={vadType} onValueChange={(value: any) => setVadType(value)}>
+              <Select value={vadType} onValueChange={(value: 'server_vad' | 'semantic_vad' | 'none') => setVadType(value)}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select VAD type" />
                 </SelectTrigger>
@@ -249,23 +352,28 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
               <label className="text-sm font-medium leading-none">
                 Temperature ({temperature})
               </label>
-              <input
-                type="range"
-                min="0"
-                max="2"
-                step="0.1"
-                value={temperature}
-                onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                className="w-full"
-              />
+              <div className="relative">
+                <input
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={temperature}
+                  onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider accent-red-500"
+                  style={{
+                    background: `linear-gradient(to right, #ef4444 0%, #ef4444 ${(temperature / 2) * 100}%, #e5e7eb ${(temperature / 2) * 100}%, #e5e7eb 100%)`
+                  }}
+                />
+              </div>
               <p className="text-xs text-muted-foreground">
                 Controls response randomness (0 = deterministic, 2 = very creative)
               </p>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium leading-none">Transcription Model</label>
-              <Select value={transcriptionModel} onValueChange={(value: any) => setTranscriptionModel(value)}>
+              <label className="text-sm font-medium leading-none">Transcription (ASR) Model</label>
+              <Select value={transcriptionModel} onValueChange={(value: 'whisper-1' | 'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe') => setTranscriptionModel(value)}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select transcription model" />
                 </SelectTrigger>
@@ -275,7 +383,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
                   <SelectItem value="gpt-4o-mini-transcribe">GPT-4o Mini Transcribe (Fast)</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            {/* Removed legacy/unsupported audio controls to mirror Realtime spec */}
 
             <div className="flex items-center space-x-2">
               <Switch
@@ -367,8 +475,9 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
         onTemplateChange={handleTemplateChange}
         onSchemaChange={onSchemaChange}
         onSave={handleDialogSave}
-        backendTools={backendTools}
+        backendTools={backendTools as Array<{ name: string; schema?: unknown }>}
       />
+
     </Card>
   );
 };

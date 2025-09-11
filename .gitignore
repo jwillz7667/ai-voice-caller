@@ -1,1 +1,17 @@
 server_info.md
+# Local Netlify folder
+.netlify
+
+# Deployment files with secrets
+webapp/deploy-vercel.sh
+webapp/deploy-to-netlify.sh
+websocket-server/service.yaml
+FRONTEND-DEPLOYMENT-OPTIONS.md
+
+# Environment files
+.env
+.env.local
+.env.production.local
+webapp/.env
+webapp/.env.local
+websocket-server/.env
