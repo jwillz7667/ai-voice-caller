@@ -3,10 +3,5 @@
   "outputDirectory": "webapp/.next",
   "installCommand": "cd webapp && npm install",
   "framework": "nextjs",
-  "regions": ["iad1"],
-  "functions": {
-    "webapp/app/api/**/*.ts": {
-      "maxDuration": 30
-    }
-  }
+  "regions": ["iad1"]
 }
