@@ -30,21 +30,21 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
+    <div className="container mx-auto px-4 py-4 md:py-8 max-w-full">
+      <div className="mb-4 md:mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Welcome, {user.name || user.email}!</h1>
-            <p className="text-muted-foreground mt-2">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Welcome, {user.name || user.email}!</h1>
+            <p className="text-sm md:text-base text-muted-foreground mt-1 md:mt-2">
               You have {user.credits} credits remaining
             </p>
           </div>
-          <div className="flex gap-2">
-            <Link href="/recordings">
-              <Button variant="outline">View Recordings</Button>
+          <div className="flex flex-row gap-2 w-full sm:w-auto">
+            <Link href="/recordings" className="flex-1 sm:flex-none">
+              <Button variant="outline" className="w-full sm:w-auto text-xs sm:text-sm">View Recordings</Button>
             </Link>
-            <Link href="/logs">
-              <Button variant="outline">View Logs</Button>
+            <Link href="/logs" className="flex-1 sm:flex-none">
+              <Button variant="outline" className="w-full sm:w-auto text-xs sm:text-sm">View Logs</Button>
             </Link>
           </div>
         </div>

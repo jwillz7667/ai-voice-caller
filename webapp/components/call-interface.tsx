@@ -190,11 +190,47 @@ const CallInterface = () => {
       setCallStatus(data.state);
     }
 
-    // Maintain conversation items for non-session events
-    if (data.type !== "session.update") {
+    // Handle conversation items and transcriptions
+    if (data.type === "conversation.item.created" || 
+        data.type === "conversation.item.input_audio_transcription.completed" ||
+        data.type === "response.output_item.added" ||
+        data.type === "response.text.delta" ||
+        data.type === "response.audio_transcript.delta") {
       if (data.item) {
-        setItems((prev) => [...prev, data.item]);
+        setItems((prev) => {
+          const existingIndex = prev.findIndex(item => item.id === data.item.id);
+          if (existingIndex >= 0) {
+            // Update existing item
+            const updated = [...prev];
+            updated[existingIndex] = { ...updated[existingIndex], ...data.item };
+            return updated;
+          }
+          return [...prev, data.item];
+        });
+      } else if (data.transcript) {
+        // Handle transcript updates
+        setItems((prev) => {
+          const lastItem = prev[prev.length - 1];
+          if (lastItem) {
+            const updated = [...prev];
+            updated[updated.length - 1] = {
+              ...lastItem,
+              formatted: {
+                ...lastItem.formatted,
+                transcript: (lastItem.formatted?.transcript || '') + data.transcript
+              }
+            };
+            return updated;
+          }
+          return prev;
+        });
       }
+    }
+    
+    // Handle errors
+    if (data.type === "error") {
+      console.error("OpenAI Error:", data.error);
+      addLogEvent("error", "server", { error: data.error });
     }
   };
 
@@ -273,11 +309,38 @@ const CallInterface = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-950 flex flex-col">
       <TopBar />
-      <div className="flex-grow p-4 lg:p-6 h-full overflow-hidden flex flex-col animate-fade-in">
-        <div className="grid grid-cols-12 gap-4 lg:gap-6 h-full">
-          {/* Left Column */}
-          <div className="col-span-12 md:col-span-3 flex flex-col h-full overflow-hidden gap-4 lg:gap-6">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl">
+      <div className="flex-grow p-2 sm:p-4 lg:p-6 overflow-auto">
+        {/* Mobile Layout */}
+        <div className="block lg:hidden space-y-4">
+          {/* Phone and Call Controls */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 p-4">
+            <PhoneNumberChecklist
+              selectedPhoneNumber={selectedPhoneNumber}
+              allConfigsReady={true}
+              setAllConfigsReady={() => {}}
+            />
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 p-4">
+            <OutgoingCall 
+              onCallInitiated={handleCallInitiated} 
+              currentConfig={sessionConfig}
+            />
+          </div>
+          
+          {/* Transcript */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div className="p-4 border-b dark:border-gray-700">
+              <h3 className="font-semibold">Call Transcript</h3>
+            </div>
+            <div className="h-64 overflow-auto">
+              <Transcript items={items} />
+            </div>
+          </div>
+          
+          {/* Collapsible Panels */}
+          <details className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
+            <summary className="p-4 cursor-pointer font-semibold">Configuration</summary>
+            <div className="p-4 pt-0">
               <SessionConfigurationPanel
                 callStatus={callStatus}
                 onSave={async (config) => {
@@ -312,6 +375,37 @@ const CallInterface = () => {
                   }
                 }}
               />
+              />
+            </div>
+          </details>
+          
+          <details className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
+            <summary className="p-4 cursor-pointer font-semibold">Logs</summary>
+            <div className="p-4 pt-0 max-h-64 overflow-auto">
+              <RealtimeLogs logs={realtimeLogs} />
+            </div>
+          </details>
+          
+          <details className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
+            <summary className="p-4 cursor-pointer font-semibold">Function Calls</summary>
+            <div className="p-4 pt-0">
+              <FunctionCallsPanel 
+                items={items} 
+                ws={ws} 
+                sendMessage={sendMessage} 
+              />
+            </div>
+          </details>
+        </div>
+        
+        {/* Desktop Layout */}
+        <div className="hidden lg:grid grid-cols-12 gap-4 lg:gap-6 h-[calc(100vh-8rem)]">
+          {/* Left Column */}
+          <div className="col-span-3 flex flex-col gap-4 overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl">
+              <SessionConfigurationPanel
+
+              />
             </div>
             <div className="flex-1 bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl">
               <div className="flex justify-between items-center mb-2">
@@ -332,28 +426,31 @@ const CallInterface = () => {
           </div>
 
           {/* Middle Column: Transcript */}
-          <div className="col-span-12 md:col-span-6 flex flex-col gap-4 lg:gap-6 h-full overflow-hidden">
-            <div className="animate-fade-in-up animate-delay-100 bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl">
+          <div className="col-span-6 flex flex-col gap-4 overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl">
               <PhoneNumberChecklist
                 selectedPhoneNumber={selectedPhoneNumber}
                 allConfigsReady={true}
                 setAllConfigsReady={() => {}}
               />
             </div>
-            <div className="animate-fade-in-up animate-delay-200 bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl">
               <OutgoingCall 
                 onCallInitiated={handleCallInitiated} 
                 currentConfig={sessionConfig}
               />
             </div>
-            <div className="flex-1 animate-fade-in-up animate-delay-300 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl overflow-hidden">
+            <div className="flex-1 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl overflow-hidden">
+              <div className="p-4 border-b dark:border-gray-700">
+                <h3 className="font-semibold">Call Transcript</h3>
+              </div>
               <Transcript items={items} />
             </div>
           </div>
 
           {/* Right Column: Function Calls */}
-          <div className="col-span-12 md:col-span-3 flex flex-col h-full overflow-hidden">
-            <div className="h-full animate-fade-in-up animate-delay-400 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl overflow-hidden">
+          <div className="col-span-3 flex flex-col overflow-hidden">
+            <div className="h-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl overflow-hidden">
               <FunctionCallsPanel 
                 items={items} 
                 ws={ws} 

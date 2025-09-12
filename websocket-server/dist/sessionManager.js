@@ -443,7 +443,7 @@ function tryConnectModel() {
     }, 20000);
 }
 function handleModelMessage(data) {
-    var _a, _b, _c, _d, _e, _f, _g;
+    var _a, _b, _c, _d, _e, _f, _g, _h;
     const event = parseMessage(data);
     if (!event)
         return;
@@ -473,7 +473,19 @@ function handleModelMessage(data) {
             }
             // Mark session as ready for audio
             session.sessionReady = true;
-            // No manual response.create needed - semantic_vad handles it automatically
+            // For semantic_vad with initiate instructions, trigger initial response with audio modality
+            if (session.vadMode === 'semantic_vad' && isOpen(session.modelConn)) {
+                const hasInitiateInstruction = (((_d = event.session) === null || _d === void 0 ? void 0 : _d.instructions) || '').toLowerCase().includes('initiate');
+                if (hasInitiateInstruction) {
+                    console.log("Triggering initial audio response for semantic_vad with initiate instruction");
+                    jsonSend(session.modelConn, {
+                        type: "response.create",
+                        response: {
+                            modalities: ["text", "audio"]
+                        }
+                    });
+                }
+            }
             break;
         // Input audio buffer lifecycle (server_vad)
         case "input_audio_buffer.cleared":
@@ -532,7 +544,7 @@ function handleModelMessage(data) {
             }
             break;
         case "conversation.item.created":
-            console.log("Conversation item created:", (_d = event.item) === null || _d === void 0 ? void 0 : _d.id);
+            console.log("Conversation item created:", (_e = event.item) === null || _e === void 0 ? void 0 : _e.id);
             break;
         case "conversation.item.deleted":
             console.log("Conversation item deleted:", event.item_id);
@@ -542,12 +554,12 @@ function handleModelMessage(data) {
             break;
         case "response.done":
             console.log("Response generation completed:", {
-                status: (_e = event.response) === null || _e === void 0 ? void 0 : _e.status,
-                usage: (_f = event.response) === null || _f === void 0 ? void 0 : _f.usage
+                status: (_f = event.response) === null || _f === void 0 ? void 0 : _f.status,
+                usage: (_g = event.response) === null || _g === void 0 ? void 0 : _g.usage
             });
             break;
         case "response.output_item.added":
-            console.log("Output item added:", (_g = event.item) === null || _g === void 0 ? void 0 : _g.type);
+            console.log("Output item added:", (_h = event.item) === null || _h === void 0 ? void 0 : _h.type);
             break;
         case "response.audio.delta":
         case "response.output_audio.delta":

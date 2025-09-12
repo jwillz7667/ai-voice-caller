@@ -332,6 +332,65 @@ export default function handleRealtimeEvent(
       break;
     }
 
+    // Handle error events
+    case "error": {
+      const { error } = ev;
+      setItems((prev) => [
+        ...prev,
+        createNewItem({
+          id: `error_${Date.now()}`,
+          type: "message",
+          role: "system",
+          content: [
+            {
+              type: "text",
+              text: `Error: ${error?.message || error?.type || JSON.stringify(error)}`,
+            },
+          ],
+          status: "error",
+        }),
+      ]);
+      break;
+    }
+
+    // Handle audio transcription deltas
+    case "conversation.item.input_audio_transcription.delta":
+    case "response.audio_transcript.delta": {
+      const { item_id, transcript, delta } = ev;
+      const text = transcript || delta || "";
+      if (item_id && text) {
+        setItems((prev) =>
+          prev.map((m) =>
+            m.id === item_id
+              ? {
+                  ...m,
+                  formatted: {
+                    ...m.formatted,
+                    transcript: (m.formatted?.transcript || "") + text,
+                  },
+                }
+              : m
+          )
+        );
+      }
+      break;
+    }
+
+    // Handle response audio delta with transcription
+    case "response.audio.delta":
+    case "response.output_audio.delta": {
+      const { item_id } = ev;
+      // Mark that audio is being received
+      if (item_id) {
+        updateOrAddItem(item_id, {
+          type: "message",
+          role: "assistant",
+          status: "streaming_audio",
+        });
+      }
+      break;
+    }
+
     default:
       break;
   }

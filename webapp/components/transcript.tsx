@@ -20,14 +20,16 @@ const Transcript: React.FC<TranscriptProps> = ({ items }) => {
     (it) =>
       it.type === "message" ||
       it.type === "function_call" ||
-      it.type === "function_call_output"
+      it.type === "function_call_output" ||
+      it.type === "conversation" ||
+      it.formatted?.transcript // Include items with transcripts
   );
 
   return (
     <div className="h-full flex flex-col overflow-hidden relative">
-      <div className="absolute top-0 left-0 w-full py-3 px-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm z-10 border-b border-gray-100 dark:border-gray-700 flex items-center">
+      <div className="absolute top-0 left-0 w-full py-2 sm:py-3 px-3 sm:px-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm z-10 border-b border-gray-100 dark:border-gray-700 flex items-center">
         <MessageSquare className="h-4 w-4 text-indigo-500 mr-2" />
-        <h3 className="text-sm font-semibold">Conversation Transcript</h3>
+        <h3 className="text-xs sm:text-sm font-semibold">Conversation Transcript</h3>
       </div>
       
       <div className="flex-1 h-full min-h-0 overflow-hidden flex flex-col pt-12">
@@ -49,17 +51,21 @@ const Transcript: React.FC<TranscriptProps> = ({ items }) => {
           </div>
         ) : (
           <ScrollArea className="h-full">
-            <div className="flex flex-col gap-6 p-6">
+            <div className="flex flex-col gap-3 sm:gap-6 p-3 sm:p-6">
               {transcriptItems.map((msg, i) => {
                 const isUser = msg.role === "user";
                 const isTool = msg.role === "tool";
                 const Icon = isUser ? Phone : isTool ? Wrench : Bot;
                 const isLast = i === transcriptItems.length - 1;
 
-                // Combine all text parts into a single string for display
-                const displayText = msg.content
-                  ? msg.content.map((c) => c.text).join("")
-                  : "";
+                // Get display text from various sources
+                const displayText = msg.formatted?.transcript || 
+                  msg.formatted?.text ||
+                  (msg.content && Array.isArray(msg.content)
+                    ? msg.content.map((c: any) => c.text || c.transcript || '').join("")
+                    : msg.content) ||
+                  msg.transcript ||
+                  "";
 
                 return (
                   <div 
@@ -96,7 +102,7 @@ const Transcript: React.FC<TranscriptProps> = ({ items }) => {
                           {msg.timestamp || "Just now"}
                         </span>
                       </div>
-                      <div className={`p-4 rounded-2xl text-sm leading-relaxed break-words ${
+                      <div className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl text-xs sm:text-sm leading-relaxed break-words ${
                         isUser 
                           ? "bg-blue-50 dark:bg-blue-900/20 text-gray-800 dark:text-gray-200" 
                           : isTool 

@@ -553,7 +553,19 @@ function handleModelMessage(data: RawData) {
       // Mark session as ready for audio
       session.sessionReady = true;
       
-      // No manual response.create needed - semantic_vad handles it automatically
+      // For semantic_vad with initiate instructions, trigger initial response with audio modality
+      if (session.vadMode === 'semantic_vad' && isOpen(session.modelConn)) {
+        const hasInitiateInstruction = (event.session?.instructions || '').toLowerCase().includes('initiate');
+        if (hasInitiateInstruction) {
+          console.log("Triggering initial audio response for semantic_vad with initiate instruction");
+          jsonSend(session.modelConn, { 
+            type: "response.create",
+            response: {
+              modalities: ["text", "audio"]
+            }
+          });
+        }
+      }
       break;
 
     // Input audio buffer lifecycle (server_vad)
