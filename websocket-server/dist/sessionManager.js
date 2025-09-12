@@ -19,6 +19,7 @@ exports.getSavedConfig = getSavedConfig;
 const ws_1 = require("ws");
 const functionHandlers_1 = __importDefault(require("./functionHandlers"));
 const realtimeEvents_1 = require("./realtimeEvents");
+const twilio_1 = __importDefault(require("twilio"));
 // µ-law decoding table
 const MULAW_DECODE_TABLE = new Int16Array([
     -32124, -31100, -30076, -29052, -28028, -27004, -25980, -24956,
@@ -189,13 +190,33 @@ function handleFunctionCall(item) {
                 // Handle call transfer
                 if (parsedResult.action === "transfer" && parsedResult.phone_number) {
                     console.log("Initiating call transfer to:", parsedResult.phone_number);
-                    // Send transfer instruction to Twilio via TwiML update
-                    // Note: Actual Twilio transfer would require updating the call with new TwiML
-                    // For now, we'll log the transfer request
-                    if (session.twilioConn && session.streamSid) {
-                        // In a real implementation, you would make an API call to Twilio to update the call
-                        console.log("Transfer requested to:", parsedResult.phone_number);
-                        // The AI will announce the transfer based on the returned message
+                    // Execute call transfer using Twilio REST API
+                    if (session.twilioConn && session.callSid) {
+                        const accountSid = process.env.TWILIO_ACCOUNT_SID;
+                        const authToken = process.env.TWILIO_AUTH_TOKEN;
+                        if (accountSid && authToken) {
+                            try {
+                                const client = (0, twilio_1.default)(accountSid, authToken);
+                                // Update the call with TwiML to transfer to the new number
+                                yield client.calls(session.callSid)
+                                    .update({
+                                    twiml: `<Response>
+                    <Say>Transferring your call now.</Say>
+                    <Dial>${parsedResult.phone_number}</Dial>
+                  </Response>`
+                                });
+                                console.log(`Call ${session.callSid} transferred to ${parsedResult.phone_number}`);
+                            }
+                            catch (error) {
+                                console.error("Error transferring call:", error);
+                            }
+                        }
+                        else {
+                            console.error("Twilio credentials not configured for call transfer");
+                        }
+                    }
+                    else {
+                        console.error("No call SID available for transfer");
                     }
                 }
                 // Handle DTMF dial tones
@@ -208,9 +229,7 @@ function handleFunctionCall(item) {
                         const authToken = process.env.TWILIO_AUTH_TOKEN;
                         if (accountSid && authToken) {
                             try {
-                                // We'll need to import twilio client
-                                const twilio = require('twilio');
-                                const client = twilio(accountSid, authToken);
+                                const client = (0, twilio_1.default)(accountSid, authToken);
                                 // Send DTMF tones via Twilio API
                                 yield client.calls(session.callSid)
                                     .update({
@@ -332,11 +351,12 @@ function tryConnectModel() {
         },
     });
     session.modelConn.on("open", () => {
-        var _a, _b;
+        var _a, _b, _c;
         console.log("Connected to OpenAI Realtime API successfully");
         // Extract saved configuration and ensure it's properly typed
         const savedConfig = session.saved_config || {};
-        console.log("Applying configuration to OpenAI session:", savedConfig);
+        console.log("Applying configuration to OpenAI session:", JSON.stringify(savedConfig, null, 2));
+        // Build clean session config with only valid OpenAI fields
         const sessionConfig = {
             modalities: ["text", "audio"],
             // Default to server VAD if not provided
@@ -350,11 +370,27 @@ function tryConnectModel() {
             input_audio_format: "g711_ulaw",
             output_audio_format: "g711_ulaw",
             voice: ((_a = savedConfig === null || savedConfig === void 0 ? void 0 : savedConfig.audio) === null || _a === void 0 ? void 0 : _a.voice) || savedConfig.voice || "ash",
-            instructions: savedConfig.instructions,
-            prompt: (_b = savedConfig.prompt) !== null && _b !== void 0 ? _b : null,
-            // Local-only value used by our bridge; not an API param
-            output_audio_gain: savedConfig.output_audio_gain,
         };
+        // Ensure semantic_vad has proper configuration
+        if (((_b = sessionConfig.turn_detection) === null || _b === void 0 ? void 0 : _b.type) === 'semantic_vad') {
+            // Set defaults for semantic_vad if not provided
+            if (sessionConfig.turn_detection.create_response === undefined) {
+                sessionConfig.turn_detection.create_response = true;
+            }
+            if (sessionConfig.turn_detection.interrupt_response === undefined) {
+                sessionConfig.turn_detection.interrupt_response = true;
+            }
+            if (sessionConfig.turn_detection.eagerness === undefined) {
+                sessionConfig.turn_detection.eagerness = 'auto';
+            }
+        }
+        // Store VAD mode for event handling logic
+        session.vadMode = ((_c = sessionConfig.turn_detection) === null || _c === void 0 ? void 0 : _c.type) || 'server_vad';
+        // Only add optional fields if they're defined
+        if (savedConfig.instructions) {
+            sessionConfig.instructions = savedConfig.instructions;
+        }
+        // Note: output_audio_gain is our local-only value, not sent to OpenAI
         // Apply user-specified tools if provided
         if (savedConfig.tools && Array.isArray(savedConfig.tools) && savedConfig.tools.length > 0) {
             sessionConfig.tools = savedConfig.tools;
@@ -371,12 +407,10 @@ function tryConnectModel() {
         }
         // Apply audio transcription settings if provided
         if (savedConfig.input_audio_transcription) {
-            sessionConfig.transcription = savedConfig.input_audio_transcription;
+            sessionConfig.input_audio_transcription = savedConfig.input_audio_transcription;
         }
-        else if (savedConfig.transcription) {
-            sessionConfig.transcription = savedConfig.transcription;
-        }
-        // Remove unsupported fields from payload: presence/frequency penalties, sample rate overrides, etc.
+        // Log the final config being sent
+        console.log("Sending session.update with config:", JSON.stringify(sessionConfig, null, 2));
         jsonSend(session.modelConn, {
             type: "session.update",
             session: sessionConfig,
@@ -409,7 +443,7 @@ function tryConnectModel() {
     }, 20000);
 }
 function handleModelMessage(data) {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d, _e, _f, _g;
     const event = parseMessage(data);
     if (!event)
         return;
@@ -431,8 +465,15 @@ function handleModelMessage(data) {
             console.log("Session created with ID:", (_a = event.session) === null || _a === void 0 ? void 0 : _a.id);
             break;
         case "session.updated":
-            console.log("Session updated successfully");
-            // Do not auto-greet; wait for user speech and a commit
+            console.log("Session updated successfully with config:", JSON.stringify(event.session, null, 2));
+            // Update VAD mode if changed
+            if ((_c = (_b = event.session) === null || _b === void 0 ? void 0 : _b.turn_detection) === null || _c === void 0 ? void 0 : _c.type) {
+                session.vadMode = event.session.turn_detection.type;
+                console.log("VAD mode set to:", session.vadMode);
+            }
+            // Mark session as ready for audio
+            session.sessionReady = true;
+            // No manual response.create needed - semantic_vad handles it automatically
             break;
         // Input audio buffer lifecycle (server_vad)
         case "input_audio_buffer.cleared":
@@ -447,32 +488,51 @@ function handleModelMessage(data) {
             // Often followed by a response.create on server side
             break;
         case "input_audio_buffer.speech_started":
-            // Track user speech to avoid empty commits
-            session.hadSpeechSinceLastCommit = true;
-            session.userSpeechStartTimestamp = session.latestMediaTimestamp || 0;
-            // Cancel any in-flight response to enable barge-in
-            if (isOpen(session.modelConn)) {
-                jsonSend(session.modelConn, { type: "response.cancel" });
+            // Only handle for server VAD mode
+            if (session.vadMode === 'server_vad') {
+                // Track user speech to avoid empty commits
+                session.hadSpeechSinceLastCommit = true;
+                session.userSpeechStartTimestamp = session.latestMediaTimestamp || 0;
+                // Cancel any in-flight response to enable barge-in
+                if (isOpen(session.modelConn)) {
+                    jsonSend(session.modelConn, { type: "response.cancel" });
+                }
+                handleTruncation();
             }
-            handleTruncation();
+            else if (session.vadMode === 'semantic_vad') {
+                // For semantic VAD, let OpenAI handle interruptions naturally
+                console.log("Speech started (semantic_vad active - not interrupting)");
+            }
             break;
         case "input_audio_buffer.speech_stopped":
             console.log("User stopped speaking");
-            const speechStart = session.userSpeechStartTimestamp || 0;
-            const speechEnd = session.latestMediaTimestamp || 0;
-            const speechDurationMs = speechEnd - speechStart;
-            const hadSpeech = !!session.hadSpeechSinceLastCommit;
-            if (isOpen(session.modelConn) && hadSpeech && speechDurationMs >= 120) {
-                jsonSend(session.modelConn, { type: "input_audio_buffer.commit" });
-                jsonSend(session.modelConn, { type: "response.create" });
+            // Only manually handle for server VAD mode
+            if (session.vadMode === 'server_vad') {
+                const speechStart = session.userSpeechStartTimestamp || 0;
+                const speechEnd = session.latestMediaTimestamp || 0;
+                const speechDurationMs = speechEnd - speechStart;
+                const hadSpeech = !!session.hadSpeechSinceLastCommit;
+                if (isOpen(session.modelConn) && hadSpeech && speechDurationMs >= 120) {
+                    jsonSend(session.modelConn, { type: "input_audio_buffer.commit" });
+                    // Add small delay before response creation to prevent immediate responses
+                    setTimeout(() => {
+                        if (isOpen(session.modelConn)) {
+                            jsonSend(session.modelConn, { type: "response.create" });
+                        }
+                    }, 200);
+                }
+                else {
+                    console.log("Skip commit: too-short or no speech detected", { hadSpeech, speechDurationMs });
+                }
+                session.hadSpeechSinceLastCommit = false;
             }
-            else {
-                console.log("Skip commit: too-short or no speech detected", { hadSpeech, speechDurationMs });
+            else if (session.vadMode === 'semantic_vad') {
+                // Semantic VAD handles turn-taking automatically
+                console.log("Speech stopped (semantic_vad will handle response timing)");
             }
-            session.hadSpeechSinceLastCommit = false;
             break;
         case "conversation.item.created":
-            console.log("Conversation item created:", (_b = event.item) === null || _b === void 0 ? void 0 : _b.id);
+            console.log("Conversation item created:", (_d = event.item) === null || _d === void 0 ? void 0 : _d.id);
             break;
         case "conversation.item.deleted":
             console.log("Conversation item deleted:", event.item_id);
@@ -482,12 +542,12 @@ function handleModelMessage(data) {
             break;
         case "response.done":
             console.log("Response generation completed:", {
-                status: (_c = event.response) === null || _c === void 0 ? void 0 : _c.status,
-                usage: (_d = event.response) === null || _d === void 0 ? void 0 : _d.usage
+                status: (_e = event.response) === null || _e === void 0 ? void 0 : _e.status,
+                usage: (_f = event.response) === null || _f === void 0 ? void 0 : _f.usage
             });
             break;
         case "response.output_item.added":
-            console.log("Output item added:", (_e = event.item) === null || _e === void 0 ? void 0 : _e.type);
+            console.log("Output item added:", (_g = event.item) === null || _g === void 0 ? void 0 : _g.type);
             break;
         case "response.audio.delta":
         case "response.output_audio.delta":
@@ -498,12 +558,7 @@ function handleModelMessage(data) {
                 }
                 if (event.item_id)
                     session.lastAssistantItem = event.item_id;
-                // Debug logging to verify audio data is being received
-                console.log("Sending audio delta to Twilio", {
-                    hasData: !!event.delta,
-                    dataLength: event.delta ? event.delta.length : 0,
-                    streamSid: session.streamSid
-                });
+                // Remove verbose logging to reduce overhead during audio streaming
                 // Get base64 audio from either field name (compat for newer event types)
                 const delta = (event.delta || event.audio);
                 // Optional local output gain before sending to Twilio
@@ -694,7 +749,7 @@ function isOpen(ws) {
     return !!ws && ws.readyState === ws_1.WebSocket.OPEN;
 }
 function setSessionConfig(config) {
-    var _a, _b;
+    var _a;
     // Store the complete config object
     session.saved_config = config;
     console.log("Updated session configuration:", session.saved_config);
@@ -711,11 +766,12 @@ function setSessionConfig(config) {
             },
             input_audio_format: "g711_ulaw",
             output_audio_format: "g711_ulaw",
-            voice: (((_a = config === null || config === void 0 ? void 0 : config.audio) === null || _a === void 0 ? void 0 : _a.voice) || config.voice || "ash"),
-            instructions: config.instructions,
-            prompt: (_b = config.prompt) !== null && _b !== void 0 ? _b : null,
-            output_audio_gain: config.output_audio_gain
+            voice: (((_a = config === null || config === void 0 ? void 0 : config.audio) === null || _a === void 0 ? void 0 : _a.voice) || config.voice || "ash")
         };
+        // Only add optional fields if defined
+        if (config.instructions) {
+            sessionUpdate.instructions = config.instructions;
+        }
         // Clamp temperature to maximum allowed value
         if (config.temperature !== undefined) {
             sessionUpdate.temperature = Math.min(config.temperature, 1.2);
@@ -727,10 +783,7 @@ function setSessionConfig(config) {
             sessionUpdate.max_output_tokens = config.max_output_tokens;
         }
         if (config.input_audio_transcription) {
-            sessionUpdate.transcription = config.input_audio_transcription;
-        }
-        else if (config.transcription) {
-            sessionUpdate.transcription = config.transcription;
+            sessionUpdate.input_audio_transcription = config.input_audio_transcription;
         }
         // Only add tools if they exist and are not empty
         if (config.tools && Array.isArray(config.tools) && config.tools.length > 0) {

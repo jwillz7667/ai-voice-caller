@@ -1,6 +1,7 @@
 import { RawData, WebSocket } from "ws";
 import functions from "./functionHandlers";
 import { isKnownRealtimeEvent } from './realtimeEvents';
+import twilio from 'twilio';
 
 // µ-law decoding table
 const MULAW_DECODE_TABLE = new Int16Array([
@@ -105,10 +106,13 @@ interface OpenAISessionConfig {
   modalities?: Array<'audio' | 'text' | string>;
   // VAD / turn detection
   turn_detection?: {
-    type: 'none' | 'server_vad';
+    type: 'none' | 'server_vad' | 'semantic_vad';
     threshold?: number;
     prefix_padding_ms?: number;
     silence_duration_ms?: number;
+    create_response?: boolean;
+    interrupt_response?: boolean;
+    eagerness?: 'auto' | 'low' | 'high';
   };
   // Audio formats per latest API spec
   input_audio_format?: 'g711_ulaw' | 'pcm16' | string;
@@ -148,6 +152,8 @@ interface Session {
   openAIApiKey?: string;
   hadSpeechSinceLastCommit?: boolean;
   userSpeechStartTimestamp?: number;
+  sessionReady?: boolean;
+  vadMode?: 'server_vad' | 'semantic_vad' | 'none';
 }
 
 let session: Session = {};
@@ -240,13 +246,33 @@ async function handleFunctionCall(item: { name: string; arguments: string }) {
       if (parsedResult.action === "transfer" && parsedResult.phone_number) {
         console.log("Initiating call transfer to:", parsedResult.phone_number);
         
-        // Send transfer instruction to Twilio via TwiML update
-        // Note: Actual Twilio transfer would require updating the call with new TwiML
-        // For now, we'll log the transfer request
-        if (session.twilioConn && session.streamSid) {
-          // In a real implementation, you would make an API call to Twilio to update the call
-          console.log("Transfer requested to:", parsedResult.phone_number);
-          // The AI will announce the transfer based on the returned message
+        // Execute call transfer using Twilio REST API
+        if (session.twilioConn && session.callSid) {
+          const accountSid = process.env.TWILIO_ACCOUNT_SID;
+          const authToken = process.env.TWILIO_AUTH_TOKEN;
+          
+          if (accountSid && authToken) {
+            try {
+              const client = twilio(accountSid, authToken);
+              
+              // Update the call with TwiML to transfer to the new number
+              await client.calls(session.callSid)
+                .update({
+                  twiml: `<Response>
+                    <Say>Transferring your call now.</Say>
+                    <Dial>${parsedResult.phone_number}</Dial>
+                  </Response>`
+                });
+              
+              console.log(`Call ${session.callSid} transferred to ${parsedResult.phone_number}`);
+            } catch (error) {
+              console.error("Error transferring call:", error);
+            }
+          } else {
+            console.error("Twilio credentials not configured for call transfer");
+          }
+        } else {
+          console.error("No call SID available for transfer");
         }
       }
       
@@ -262,8 +288,6 @@ async function handleFunctionCall(item: { name: string; arguments: string }) {
           
           if (accountSid && authToken) {
             try {
-              // We'll need to import twilio client
-              const twilio = require('twilio');
               const client = twilio(accountSid, authToken);
               
               // Send DTMF tones via Twilio API
@@ -396,9 +420,10 @@ function tryConnectModel() {
     console.log("Connected to OpenAI Realtime API successfully");
     // Extract saved configuration and ensure it's properly typed
     const savedConfig = session.saved_config || {} as OpenAISessionConfig;
-    console.log("Applying configuration to OpenAI session:", savedConfig);
+    console.log("Applying configuration to OpenAI session:", JSON.stringify(savedConfig, null, 2));
 
-    const sessionConfig: OpenAISessionConfig = {
+    // Build clean session config with only valid OpenAI fields
+    const sessionConfig: any = {
       modalities: ["text", "audio"],
       // Default to server VAD if not provided
       turn_detection: savedConfig.turn_detection || {
@@ -411,11 +436,31 @@ function tryConnectModel() {
       input_audio_format: "g711_ulaw",
       output_audio_format: "g711_ulaw",
       voice: (savedConfig as any)?.audio?.voice || (savedConfig as any).voice || "ash",
-      instructions: savedConfig.instructions,
-      prompt: savedConfig.prompt ?? null,
-      // Local-only value used by our bridge; not an API param
-      output_audio_gain: savedConfig.output_audio_gain,
     };
+    
+    // Ensure semantic_vad has proper configuration
+    if (sessionConfig.turn_detection?.type === 'semantic_vad') {
+      // Set defaults for semantic_vad if not provided
+      if (sessionConfig.turn_detection.create_response === undefined) {
+        sessionConfig.turn_detection.create_response = true;
+      }
+      if (sessionConfig.turn_detection.interrupt_response === undefined) {
+        sessionConfig.turn_detection.interrupt_response = true;
+      }
+      if (sessionConfig.turn_detection.eagerness === undefined) {
+        sessionConfig.turn_detection.eagerness = 'auto';
+      }
+    }
+    
+    // Store VAD mode for event handling logic
+    session.vadMode = sessionConfig.turn_detection?.type || 'server_vad';
+    
+    // Only add optional fields if they're defined
+    if (savedConfig.instructions) {
+      sessionConfig.instructions = savedConfig.instructions;
+    }
+    
+    // Note: output_audio_gain is our local-only value, not sent to OpenAI
 
     // Apply user-specified tools if provided
     if (savedConfig.tools && Array.isArray(savedConfig.tools) && savedConfig.tools.length > 0) {
@@ -435,11 +480,11 @@ function tryConnectModel() {
 
     // Apply audio transcription settings if provided
     if ((savedConfig as any).input_audio_transcription) {
-      sessionConfig.transcription = (savedConfig as any).input_audio_transcription;
-    } else if (savedConfig.transcription) {
-      sessionConfig.transcription = savedConfig.transcription;
+      sessionConfig.input_audio_transcription = (savedConfig as any).input_audio_transcription;
     }
-    // Remove unsupported fields from payload: presence/frequency penalties, sample rate overrides, etc.
+    
+    // Log the final config being sent
+    console.log("Sending session.update with config:", JSON.stringify(sessionConfig, null, 2));
 
     jsonSend(session.modelConn, {
       type: "session.update",
@@ -499,8 +544,16 @@ function handleModelMessage(data: RawData) {
       break;
       
     case "session.updated":
-      console.log("Session updated successfully");
-      // Do not auto-greet; wait for user speech and a commit
+      console.log("Session updated successfully with config:", JSON.stringify(event.session, null, 2));
+      // Update VAD mode if changed
+      if (event.session?.turn_detection?.type) {
+        session.vadMode = event.session.turn_detection.type;
+        console.log("VAD mode set to:", session.vadMode);
+      }
+      // Mark session as ready for audio
+      session.sessionReady = true;
+      
+      // No manual response.create needed - semantic_vad handles it automatically
       break;
 
     // Input audio buffer lifecycle (server_vad)
@@ -517,29 +570,46 @@ function handleModelMessage(data: RawData) {
       break;
 
     case "input_audio_buffer.speech_started":
-      // Track user speech to avoid empty commits
-      session.hadSpeechSinceLastCommit = true;
-      session.userSpeechStartTimestamp = session.latestMediaTimestamp || 0;
-      // Cancel any in-flight response to enable barge-in
-      if (isOpen(session.modelConn)) {
-        jsonSend(session.modelConn, { type: "response.cancel" });
+      // Only handle for server VAD mode
+      if (session.vadMode === 'server_vad') {
+        // Track user speech to avoid empty commits
+        session.hadSpeechSinceLastCommit = true;
+        session.userSpeechStartTimestamp = session.latestMediaTimestamp || 0;
+        // Cancel any in-flight response to enable barge-in
+        if (isOpen(session.modelConn)) {
+          jsonSend(session.modelConn, { type: "response.cancel" });
+        }
+        handleTruncation();
+      } else if (session.vadMode === 'semantic_vad') {
+        // For semantic VAD, let OpenAI handle interruptions naturally
+        console.log("Speech started (semantic_vad active - not interrupting)");
       }
-      handleTruncation();
       break;
       
     case "input_audio_buffer.speech_stopped":
       console.log("User stopped speaking");
-      const speechStart = session.userSpeechStartTimestamp || 0;
-      const speechEnd = session.latestMediaTimestamp || 0;
-      const speechDurationMs = speechEnd - speechStart;
-      const hadSpeech = !!session.hadSpeechSinceLastCommit;
-      if (isOpen(session.modelConn) && hadSpeech && speechDurationMs >= 120) {
-        jsonSend(session.modelConn, { type: "input_audio_buffer.commit" });
-        jsonSend(session.modelConn, { type: "response.create" });
-      } else {
-        console.log("Skip commit: too-short or no speech detected", { hadSpeech, speechDurationMs });
+      // Only manually handle for server VAD mode
+      if (session.vadMode === 'server_vad') {
+        const speechStart = session.userSpeechStartTimestamp || 0;
+        const speechEnd = session.latestMediaTimestamp || 0;
+        const speechDurationMs = speechEnd - speechStart;
+        const hadSpeech = !!session.hadSpeechSinceLastCommit;
+        if (isOpen(session.modelConn) && hadSpeech && speechDurationMs >= 120) {
+          jsonSend(session.modelConn, { type: "input_audio_buffer.commit" });
+          // Add small delay before response creation to prevent immediate responses
+          setTimeout(() => {
+            if (isOpen(session.modelConn)) {
+              jsonSend(session.modelConn, { type: "response.create" });
+            }
+          }, 200);
+        } else {
+          console.log("Skip commit: too-short or no speech detected", { hadSpeech, speechDurationMs });
+        }
+        session.hadSpeechSinceLastCommit = false;
+      } else if (session.vadMode === 'semantic_vad') {
+        // Semantic VAD handles turn-taking automatically
+        console.log("Speech stopped (semantic_vad will handle response timing)");
       }
-      session.hadSpeechSinceLastCommit = false;
       break;
 
     case "conversation.item.created":
@@ -573,12 +643,7 @@ function handleModelMessage(data: RawData) {
         }
         if (event.item_id) session.lastAssistantItem = event.item_id;
 
-        // Debug logging to verify audio data is being received
-        console.log("Sending audio delta to Twilio", {
-          hasData: !!event.delta,
-          dataLength: event.delta ? event.delta.length : 0,
-          streamSid: session.streamSid
-        });
+        // Remove verbose logging to reduce overhead during audio streaming
 
         // Get base64 audio from either field name (compat for newer event types)
         const delta = (event.delta || event.audio) as string | undefined;
@@ -801,7 +866,7 @@ export function setSessionConfig(config: any) {
   if (isOpen(session.modelConn)) {
     console.log("Updating active OpenAI session with new configuration");
     
-    const sessionUpdate: OpenAISessionConfig = {
+    const sessionUpdate: any = {
       modalities: ["text", "audio"],
       turn_detection: config.turn_detection || { 
         type: "server_vad",
@@ -811,11 +876,13 @@ export function setSessionConfig(config: any) {
       },
       input_audio_format: "g711_ulaw",
       output_audio_format: "g711_ulaw",
-      voice: (config?.audio?.voice || config.voice || "ash") as any,
-      instructions: config.instructions,
-      prompt: config.prompt ?? null,
-      output_audio_gain: config.output_audio_gain
+      voice: (config?.audio?.voice || config.voice || "ash") as any
     };
+    
+    // Only add optional fields if defined
+    if (config.instructions) {
+      sessionUpdate.instructions = config.instructions;
+    }
     
     // Clamp temperature to maximum allowed value
     if (config.temperature !== undefined) {
@@ -829,9 +896,7 @@ export function setSessionConfig(config: any) {
     }
     
     if (config.input_audio_transcription) {
-      sessionUpdate.transcription = config.input_audio_transcription;
-    } else if (config.transcription) {
-      sessionUpdate.transcription = config.transcription;
+      sessionUpdate.input_audio_transcription = config.input_audio_transcription;
     }
 
     // Only add tools if they exist and are not empty
