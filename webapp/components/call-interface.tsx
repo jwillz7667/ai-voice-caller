@@ -11,6 +11,7 @@ import handleRealtimeEvent from "@/lib/handle-realtime-event";
 import PhoneNumberChecklist from "@/components/phone-number-checklist";
 import OutgoingCall from "@/components/outgoing-call";
 import RealtimeLogs from "@/components/realtime-logs-panel";
+import PhonePad from "@/components/phone-pad";
 import { Button } from "@/components/ui/button";
 
 interface LogEntry {
@@ -34,6 +35,7 @@ const CallInterface = () => {
     }[]
   >([]);
   const [ws, setWs] = useState<WebSocket | null>(null);
+  const [currentCallSid, setCurrentCallSid] = useState<string | null>(null);
   const [sessionConfig, setSessionConfig] = useState({
     instructions: "You are Jingle.AI, a helpful voice assistant in a phone call. You have the ability to transfer calls and dial extensions when needed.",
     voice: "ash", // Updated to use new expressive voice
@@ -155,6 +157,43 @@ const CallInterface = () => {
     }
   };
 
+  // Handle DTMF digit press
+  const handleDigitPress = (digit: string) => {
+    if (ws && ws.readyState === WebSocket.OPEN && currentCallSid) {
+      const dtmfMessage = {
+        type: "dtmf",
+        digit: digit,
+        callSid: currentCallSid,
+      };
+      sendMessage(dtmfMessage);
+      addLogEvent("dtmf_sent", "client", { digit, callSid: currentCallSid });
+    }
+  };
+
+  // Handle ending the call
+  const handleEndCall = async () => {
+    if (currentCallSid) {
+      try {
+        const response = await fetch("/api/twilio/end-call", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ callSid: currentCallSid }),
+        });
+        
+        if (response.ok) {
+          addLogEvent("call_ended", "client", { callSid: currentCallSid });
+          setCurrentCallSid(null);
+          setCallStatus("disconnected");
+        }
+      } catch (error) {
+        console.error("Error ending call:", error);
+        addLogEvent("error", "client", { message: "Failed to end call", error: String(error) });
+      }
+    }
+  };
+
   // Handle initiating an outgoing call
   const handleCallInitiated = (phoneNumber: string, details?: any) => {
     // Determine the event type based on the provided parameters
@@ -188,6 +227,18 @@ const CallInterface = () => {
     // Now process the event for the UI state updates
     if (data.type === "session.update") {
       setCallStatus(data.state);
+    }
+    
+    // Track call SID when call starts
+    if (data.type === "start" && data.callSid) {
+      setCurrentCallSid(data.callSid);
+      addLogEvent("call_started", "server", { callSid: data.callSid });
+    }
+    
+    // Clear call SID when call ends
+    if (data.type === "stop" || data.type === "close") {
+      setCurrentCallSid(null);
+      setCallStatus("disconnected");
     }
     
     // Use the imported handleRealtimeEvent for transcript processing
@@ -292,6 +343,18 @@ const CallInterface = () => {
             />
           </div>
           
+          {/* Phone Pad - Show when call is active */}
+          {currentCallSid && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 p-4">
+              <PhonePad
+                onDigitPress={handleDigitPress}
+                onEndCall={handleEndCall}
+                isCallActive={!!currentCallSid}
+                disabled={false}
+              />
+            </div>
+          )}
+          
           {/* Transcript */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
             <div className="p-4 border-b dark:border-gray-700">
@@ -340,7 +403,6 @@ const CallInterface = () => {
                   }
                 }}
               />
-              />
             </div>
           </details>
           
@@ -369,7 +431,38 @@ const CallInterface = () => {
           <div className="col-span-3 flex flex-col gap-4 overflow-hidden">
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl">
               <SessionConfigurationPanel
+                callStatus={callStatus}
+                onSave={async (config) => {
+                  setSessionConfig(config);
+                  const updateEvent = {
+                    type: "session.update",
+                    session: {
+                      instructions: config.instructions,
+                      voice: config.voice,
+                      model: config.model,
+                      prompt: config.prompt,
+                      tools: config.tools,
+                      turn_detection: config.turn_detection,
+                      temperature: config.temperature,
+                      transcription: (config as any).input_audio_transcription || (config as any).transcription,
+                      max_output_tokens: (config as any).max_response_output_tokens ?? (config as any).max_output_tokens,
+                      recordCall: config.recordCall,
+                    },
+                  };
+                  console.log("Sending update event:", updateEvent);
+                  sendMessage(updateEvent);
 
+                  // Persist for next calls on the backend
+                  try {
+                    await fetch("http://localhost:8081/session-config", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(config),
+                    });
+                  } catch (e) {
+                    console.warn("Failed to persist session config to backend:", e);
+                  }
+                }}
               />
             </div>
             <div className="flex-1 bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl">
@@ -405,6 +498,17 @@ const CallInterface = () => {
                 currentConfig={sessionConfig}
               />
             </div>
+            {/* Phone Pad - Show when call is active */}
+            {currentCallSid && (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl">
+                <PhonePad
+                  onDigitPress={handleDigitPress}
+                  onEndCall={handleEndCall}
+                  isCallActive={!!currentCallSid}
+                  disabled={false}
+                />
+              </div>
+            )}
             <div className="flex-1 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl overflow-hidden">
               <div className="p-4 border-b dark:border-gray-700">
                 <h3 className="font-semibold">Call Transcript</h3>

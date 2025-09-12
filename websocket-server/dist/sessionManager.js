@@ -297,6 +297,25 @@ function handleFrontendMessage(data) {
     const msg = parseMessage(data);
     if (!msg)
         return;
+    // Handle DTMF messages
+    if (msg.type === "dtmf" && msg.digit && session.twilioConn) {
+        console.log("Sending DTMF digit:", msg.digit);
+        const dtmfMessage = {
+            event: "dtmf",
+            streamSid: session.streamSid,
+            dtmf: msg.digit
+        };
+        jsonSend(session.twilioConn, dtmfMessage);
+        // Also notify the frontend about the DTMF being sent
+        if (session.frontendConn) {
+            jsonSend(session.frontendConn, {
+                type: "dtmf_sent",
+                digit: msg.digit,
+                timestamp: new Date().toISOString()
+            });
+        }
+        return;
+    }
     if (isOpen(session.modelConn)) {
         jsonSend(session.modelConn, msg);
     }
