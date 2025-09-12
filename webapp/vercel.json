@@ -3,5 +3,20 @@
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
-  "regions": ["iad1"]
+  "outputDirectory": ".next",
+  "regions": ["iad1"],
+  "functions": {
+    "app/api/auth/login/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/auth/register/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/twilio/make-call/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/recordings/route.ts": {
+      "maxDuration": 30
+    }
+  }
 }
