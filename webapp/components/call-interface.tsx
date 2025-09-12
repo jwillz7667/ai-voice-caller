@@ -368,7 +368,7 @@ const CallInterface = () => {
           {/* Collapsible Panels */}
           <details className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
             <summary className="p-4 cursor-pointer font-semibold">Configuration</summary>
-            <div className="p-4 pt-0">
+            <div className="p-4 pt-0 max-h-[60vh] overflow-hidden">
               <SessionConfigurationPanel
                 callStatus={callStatus}
                 onSave={async (config) => {
@@ -429,7 +429,7 @@ const CallInterface = () => {
         <div className="hidden lg:grid grid-cols-12 gap-4 lg:gap-6 h-[calc(100vh-8rem)]">
           {/* Left Column */}
           <div className="col-span-3 flex flex-col gap-4 overflow-hidden">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl h-full overflow-hidden">
               <SessionConfigurationPanel
                 callStatus={callStatus}
                 onSave={async (config) => {
