@@ -18,6 +18,7 @@ exports.setSessionConfig = setSessionConfig;
 exports.getSavedConfig = getSavedConfig;
 const ws_1 = require("ws");
 const functionHandlers_1 = __importDefault(require("./functionHandlers"));
+const realtimeEvents_1 = require("./realtimeEvents");
 // µ-law decoding table
 const MULAW_DECODE_TABLE = new Int16Array([
     -32124, -31100, -30076, -29052, -28028, -27004, -25980, -24956,
@@ -331,12 +332,13 @@ function tryConnectModel() {
         },
     });
     session.modelConn.on("open", () => {
+        var _a, _b;
         console.log("Connected to OpenAI Realtime API successfully");
         // Extract saved configuration and ensure it's properly typed
         const savedConfig = session.saved_config || {};
         console.log("Applying configuration to OpenAI session:", savedConfig);
         const sessionConfig = {
-            modalities: ["audio", "text"],
+            modalities: ["text", "audio"],
             // Default to server VAD if not provided
             turn_detection: savedConfig.turn_detection || {
                 type: "server_vad",
@@ -347,9 +349,10 @@ function tryConnectModel() {
             // Twilio expects G.711 µ-law at 8kHz for both input and output
             input_audio_format: "g711_ulaw",
             output_audio_format: "g711_ulaw",
+            voice: ((_a = savedConfig === null || savedConfig === void 0 ? void 0 : savedConfig.audio) === null || _a === void 0 ? void 0 : _a.voice) || savedConfig.voice || "ash",
             instructions: savedConfig.instructions,
-            prompt: savedConfig.prompt,
-            voice: savedConfig.voice,
+            prompt: (_b = savedConfig.prompt) !== null && _b !== void 0 ? _b : null,
+            // Local-only value used by our bridge; not an API param
             output_audio_gain: savedConfig.output_audio_gain,
         };
         // Apply user-specified tools if provided
@@ -361,30 +364,19 @@ function tryConnectModel() {
             sessionConfig.temperature = Math.min(savedConfig.temperature, 1.2);
         }
         if (savedConfig.max_response_output_tokens !== undefined) {
-            sessionConfig.max_response_output_tokens = savedConfig.max_response_output_tokens;
+            sessionConfig.max_output_tokens = savedConfig.max_response_output_tokens;
+        }
+        else if (savedConfig.max_output_tokens !== undefined) {
+            sessionConfig.max_output_tokens = savedConfig.max_output_tokens;
         }
         // Apply audio transcription settings if provided
         if (savedConfig.input_audio_transcription) {
-            sessionConfig.input_audio_transcription = savedConfig.input_audio_transcription;
+            sessionConfig.transcription = savedConfig.input_audio_transcription;
         }
-        // Apply enhanced audio processing parameters
-        if (savedConfig.input_audio_noise_reduction) {
-            sessionConfig.input_audio_noise_reduction = savedConfig.input_audio_noise_reduction;
+        else if (savedConfig.transcription) {
+            sessionConfig.transcription = savedConfig.transcription;
         }
-        // Removed: input_audio_gain_control (unsupported by API)
-        // Removed: response_eagerness (unsupported by API)
-        if (savedConfig.response_presence_penalty !== undefined) {
-            sessionConfig.response_presence_penalty = savedConfig.response_presence_penalty;
-        }
-        if (savedConfig.response_frequency_penalty !== undefined) {
-            sessionConfig.response_frequency_penalty = savedConfig.response_frequency_penalty;
-        }
-        if (savedConfig.response_output_audio_sample_rate) {
-            sessionConfig.response_output_audio_sample_rate = savedConfig.response_output_audio_sample_rate;
-        }
-        if (savedConfig.response_output_audio_channels) {
-            sessionConfig.response_output_audio_channels = savedConfig.response_output_audio_channels;
-        }
+        // Remove unsupported fields from payload: presence/frequency penalties, sample rate overrides, etc.
         jsonSend(session.modelConn, {
             type: "session.update",
             session: sessionConfig,
@@ -422,6 +414,10 @@ function handleModelMessage(data) {
     if (!event)
         return;
     console.log("Received from OpenAI:", event.type);
+    if (!(0, realtimeEvents_1.isKnownRealtimeEvent)(String(event.type))) {
+        // Keep forwarding unknown events, but flag in logs for visibility.
+        console.warn("Unhandled/unknown Realtime event type:", event.type);
+    }
     jsonSend(session.frontendConn, event);
     switch (event.type) {
         case "error":
@@ -437,6 +433,18 @@ function handleModelMessage(data) {
         case "session.updated":
             console.log("Session updated successfully");
             // Do not auto-greet; wait for user speech and a commit
+            break;
+        // Input audio buffer lifecycle (server_vad)
+        case "input_audio_buffer.cleared":
+            console.log("Input buffer cleared by server");
+            break;
+        case "input_audio_buffer.timeout_triggered":
+            console.log("Input buffer timeout triggered", {
+                audio_start_ms: event.audio_start_ms,
+                audio_end_ms: event.audio_end_ms,
+                item_id: event.item_id,
+            });
+            // Often followed by a response.create on server side
             break;
         case "input_audio_buffer.speech_started":
             // Track user speech to avoid empty commits
@@ -466,6 +474,9 @@ function handleModelMessage(data) {
         case "conversation.item.created":
             console.log("Conversation item created:", (_b = event.item) === null || _b === void 0 ? void 0 : _b.id);
             break;
+        case "conversation.item.deleted":
+            console.log("Conversation item deleted:", event.item_id);
+            break;
         case "response.created":
             console.log("Response generation started");
             break;
@@ -480,6 +491,7 @@ function handleModelMessage(data) {
             break;
         case "response.audio.delta":
         case "response.output_audio.delta":
+            // Streamed base64 g711_ulaw chunks
             if (session.twilioConn && session.streamSid) {
                 if (session.responseStartTimestamp === undefined) {
                     session.responseStartTimestamp = session.latestMediaTimestamp || 0;
@@ -524,6 +536,15 @@ function handleModelMessage(data) {
         case "response.output_audio.done":
             console.log("Audio response completed");
             break;
+        case "response.output_audio_transcript.delta":
+        case "response.audio_transcript.delta":
+            // Forwarded to client for live captions; server just logs.
+            if (event.delta)
+                console.log("Audio transcript delta:", event.delta);
+            break;
+        case "response.output_audio_transcript.done":
+            console.log("Audio transcript done");
+            break;
         case "response.text.delta":
         case "response.output_text.delta":
             if (event.delta) {
@@ -535,6 +556,34 @@ function handleModelMessage(data) {
             if (event.text) {
                 console.log("Text response:", event.text);
             }
+            break;
+        // Function/tool argument streaming
+        case "response.function_call_arguments.delta":
+        case "response.tool_call_arguments.delta":
+            console.log("Fn/tool args delta:", event.delta);
+            break;
+        case "response.function_call_arguments.done":
+        case "response.tool_call_arguments.done":
+            console.log("Fn/tool args done for call:", event.call_id);
+            break;
+        // MCP tool calls and listing
+        case "response.mcp_call.in_progress":
+            console.log("MCP call started:", event.item_id);
+            break;
+        case "response.mcp_call.completed":
+            console.log("MCP call completed:", event.item_id);
+            break;
+        case "response.mcp_call_arguments.delta":
+            console.log("MCP call args delta:", event.delta);
+            break;
+        case "response.mcp_call_arguments.done":
+            console.log("MCP call args done for item:", event.item_id);
+            break;
+        case "mcp_list_tools.in_progress":
+            console.log("MCP list tools in progress:", event.item_id);
+            break;
+        case "mcp_list_tools.completed":
+            console.log("MCP list tools completed:", event.item_id);
             break;
         case "response.output_item.done": {
             const { item } = event;
@@ -645,6 +694,7 @@ function isOpen(ws) {
     return !!ws && ws.readyState === ws_1.WebSocket.OPEN;
 }
 function setSessionConfig(config) {
+    var _a, _b;
     // Store the complete config object
     session.saved_config = config;
     console.log("Updated session configuration:", session.saved_config);
@@ -652,7 +702,7 @@ function setSessionConfig(config) {
     if (isOpen(session.modelConn)) {
         console.log("Updating active OpenAI session with new configuration");
         const sessionUpdate = {
-            modalities: ["audio", "text"],
+            modalities: ["text", "audio"],
             turn_detection: config.turn_detection || {
                 type: "server_vad",
                 threshold: 0.5,
@@ -661,9 +711,9 @@ function setSessionConfig(config) {
             },
             input_audio_format: "g711_ulaw",
             output_audio_format: "g711_ulaw",
-            voice: config.voice || "ash",
+            voice: (((_a = config === null || config === void 0 ? void 0 : config.audio) === null || _a === void 0 ? void 0 : _a.voice) || config.voice || "ash"),
             instructions: config.instructions,
-            prompt: config.prompt,
+            prompt: (_b = config.prompt) !== null && _b !== void 0 ? _b : null,
             output_audio_gain: config.output_audio_gain
         };
         // Clamp temperature to maximum allowed value
@@ -671,28 +721,16 @@ function setSessionConfig(config) {
             sessionUpdate.temperature = Math.min(config.temperature, 1.2);
         }
         if (config.max_response_output_tokens !== undefined) {
-            sessionUpdate.max_response_output_tokens = config.max_response_output_tokens;
+            sessionUpdate.max_output_tokens = config.max_response_output_tokens;
+        }
+        else if (config.max_output_tokens !== undefined) {
+            sessionUpdate.max_output_tokens = config.max_output_tokens;
         }
         if (config.input_audio_transcription) {
-            sessionUpdate.input_audio_transcription = config.input_audio_transcription;
+            sessionUpdate.transcription = config.input_audio_transcription;
         }
-        // Apply enhanced audio processing parameters
-        if (config.input_audio_noise_reduction) {
-            sessionUpdate.input_audio_noise_reduction = config.input_audio_noise_reduction;
-        }
-        // Removed: input_audio_gain_control (unsupported by API)
-        // Removed: response_eagerness (unsupported by API)
-        if (config.response_presence_penalty !== undefined) {
-            sessionUpdate.response_presence_penalty = config.response_presence_penalty;
-        }
-        if (config.response_frequency_penalty !== undefined) {
-            sessionUpdate.response_frequency_penalty = config.response_frequency_penalty;
-        }
-        if (config.response_output_audio_sample_rate) {
-            sessionUpdate.response_output_audio_sample_rate = config.response_output_audio_sample_rate;
-        }
-        if (config.response_output_audio_channels) {
-            sessionUpdate.response_output_audio_channels = config.response_output_audio_channels;
+        else if (config.transcription) {
+            sessionUpdate.transcription = config.transcription;
         }
         // Only add tools if they exist and are not empty
         if (config.tools && Array.isArray(config.tools) && config.tools.length > 0) {

@@ -3,22 +3,5 @@
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
-  "regions": ["iad1"],
-  "env": {
-    "NEXT_PUBLIC_WEBSOCKET_URL": "@websocket_url",
-    "BACKEND_URL": "@backend_url",
-    "PUBLIC_URL": "@public_url",
-    "NEXT_PUBLIC_AUTH_BYPASS": "true"
-  },
-  "build": {
-    "env": {
-      "NEXT_PUBLIC_WEBSOCKET_URL": "@websocket_url",
-      "BACKEND_URL": "@backend_url",
-      "PUBLIC_URL": "@public_url",
-      "NEXT_PUBLIC_AUTH_BYPASS": "true",
-      "TWILIO_ACCOUNT_SID": "@twilio_account_sid",
-      "TWILIO_AUTH_TOKEN": "@twilio_auth_token",
-      "TWILIO_PHONE_NUMBER": "@twilio_phone_number"
-    }
-  }
+  "regions": ["iad1"]
 }

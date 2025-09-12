@@ -5,6 +5,7 @@ server_info.md
 # Deployment files with secrets
 webapp/deploy-vercel.sh
 webapp/deploy-to-netlify.sh
+webapp/scripts/update-twilio-webhooks.js
 websocket-server/service.yaml
 FRONTEND-DEPLOYMENT-OPTIONS.md
 

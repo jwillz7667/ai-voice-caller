@@ -101,31 +101,20 @@ function amplifyMuLawAudio(base64Audio: string, gainFactor: number): string {
 
 // OpenAI Realtime Session configuration aligned to official reference
 interface OpenAISessionConfig {
-  // Output modalities per spec (audio for Twilio bridge)
-  output_modalities?: Array<'audio' | 'text' | string>;
+  // Modalities per latest API spec
+  modalities?: Array<'audio' | 'text' | string>;
   // VAD / turn detection
   turn_detection?: {
-    type: 'none' | 'server_vad' | 'semantic_vad';
+    type: 'none' | 'server_vad';
     threshold?: number;
     prefix_padding_ms?: number;
     silence_duration_ms?: number;
   };
-  // Structured audio config
-  input?: {
-    format?: {
-      type?: 'g711_ulaw' | 'audio/pcm' | string;
-      rate?: number;
-    };
-  };
-  audio?: {
-    output?: {
-      format?: {
-        type?: 'g711_ulaw' | 'audio/pcm' | string;
-        rate?: number;
-      };
-    };
-    voice?: 'alloy' | 'ash' | 'ballad' | 'cedar' | 'coral' | 'echo' | 'marin' | 'sage' | 'shimmer' | 'verse' | string;
-  };
+  // Audio formats per latest API spec
+  input_audio_format?: 'g711_ulaw' | 'pcm16' | string;
+  output_audio_format?: 'g711_ulaw' | 'pcm16' | string;
+  // Voice selection
+  voice?: 'alloy' | 'ash' | 'ballad' | 'cedar' | 'coral' | 'echo' | 'sage' | 'shimmer' | 'verse' | string;
   // Optional transcription config
   transcription?: {
     model: 'whisper-1' | 'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe';
@@ -410,7 +399,7 @@ function tryConnectModel() {
     console.log("Applying configuration to OpenAI session:", savedConfig);
 
     const sessionConfig: OpenAISessionConfig = {
-      output_modalities: ["audio"],
+      modalities: ["text", "audio"],
       // Default to server VAD if not provided
       turn_detection: savedConfig.turn_detection || {
         type: "server_vad",
@@ -419,11 +408,9 @@ function tryConnectModel() {
         silence_duration_ms: 800,
       },
       // Twilio expects G.711 µ-law at 8kHz for both input and output
-      input: { format: { type: "g711_ulaw", rate: 8000 } },
-      audio: {
-        output: { format: { type: "g711_ulaw", rate: 8000 } },
-        voice: (savedConfig as any)?.audio?.voice || (savedConfig as any).voice || "ash",
-      },
+      input_audio_format: "g711_ulaw",
+      output_audio_format: "g711_ulaw",
+      voice: (savedConfig as any)?.audio?.voice || (savedConfig as any).voice || "ash",
       instructions: savedConfig.instructions,
       prompt: savedConfig.prompt ?? null,
       // Local-only value used by our bridge; not an API param
@@ -815,18 +802,16 @@ export function setSessionConfig(config: any) {
     console.log("Updating active OpenAI session with new configuration");
     
     const sessionUpdate: OpenAISessionConfig = {
-      output_modalities: ["audio"],
+      modalities: ["text", "audio"],
       turn_detection: config.turn_detection || { 
         type: "server_vad",
         threshold: 0.5,
         prefix_padding_ms: 300,
         silence_duration_ms: 500
       },
-      input: { format: { type: "g711_ulaw", rate: 8000 } },
-      audio: {
-        output: { format: { type: "g711_ulaw", rate: 8000 } },
-        voice: (config?.audio?.voice || config.voice || "ash") as any,
-      },
+      input_audio_format: "g711_ulaw",
+      output_audio_format: "g711_ulaw",
+      voice: (config?.audio?.voice || config.voice || "ash") as any,
       instructions: config.instructions,
       prompt: config.prompt ?? null,
       output_audio_gain: config.output_audio_gain

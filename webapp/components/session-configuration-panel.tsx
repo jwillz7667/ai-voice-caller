@@ -11,7 +11,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Plus, Edit, Trash, Check, AlertCircle } from "lucide-react";
-import { Switch, Label } from "@/components/ui";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { toolTemplates } from "@/lib/tool-templates";
 import { ToolConfigurationDialog } from "./tool-configuration-dialog";
 import { BackendTag } from "./backend-tag";
@@ -383,6 +384,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
                   <SelectItem value="gpt-4o-mini-transcribe">GPT-4o Mini Transcribe (Fast)</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
             {/* Removed legacy/unsupported audio controls to mirror Realtime spec */}
 
             <div className="flex items-center space-x-2">
@@ -477,7 +479,6 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
         onSave={handleDialogSave}
         backendTools={backendTools as Array<{ name: string; schema?: unknown }>}
       />
-
     </Card>
   );
 };
