@@ -343,17 +343,6 @@ const CallInterface = () => {
             />
           </div>
           
-          {/* Phone Pad - Show when call is active */}
-          {currentCallSid && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 p-4">
-              <PhonePad
-                onDigitPress={handleDigitPress}
-                onEndCall={handleEndCall}
-                isCallActive={!!currentCallSid}
-                disabled={false}
-              />
-            </div>
-          )}
           
           {/* Transcript */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
@@ -368,7 +357,7 @@ const CallInterface = () => {
           {/* Collapsible Panels */}
           <details className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
             <summary className="p-4 cursor-pointer font-semibold">Configuration</summary>
-            <div className="p-4 pt-0 max-h-[60vh] overflow-hidden">
+            <div className="p-4 pt-0 h-[60vh] overflow-hidden">
               <SessionConfigurationPanel
                 callStatus={callStatus}
                 onSave={async (config) => {
@@ -410,6 +399,18 @@ const CallInterface = () => {
             <summary className="p-4 cursor-pointer font-semibold">Logs</summary>
             <div className="p-4 pt-0 max-h-64 overflow-auto">
               <RealtimeLogs logs={realtimeLogs} />
+            </div>
+          </details>
+          
+          <details className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
+            <summary className="p-4 cursor-pointer font-semibold">Phone Pad</summary>
+            <div className="p-4 pt-0">
+              <PhonePad
+                onDigitPress={handleDigitPress}
+                onEndCall={handleEndCall}
+                isCallActive={!!currentCallSid}
+                disabled={!currentCallSid}
+              />
             </div>
           </details>
           
@@ -498,17 +499,6 @@ const CallInterface = () => {
                 currentConfig={sessionConfig}
               />
             </div>
-            {/* Phone Pad - Show when call is active */}
-            {currentCallSid && (
-              <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl">
-                <PhonePad
-                  onDigitPress={handleDigitPress}
-                  onEndCall={handleEndCall}
-                  isCallActive={!!currentCallSid}
-                  disabled={false}
-                />
-              </div>
-            )}
             <div className="flex-1 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl overflow-hidden">
               <div className="p-4 border-b dark:border-gray-700">
                 <h3 className="font-semibold">Call Transcript</h3>
@@ -517,9 +507,18 @@ const CallInterface = () => {
             </div>
           </div>
 
-          {/* Right Column: Function Calls */}
-          <div className="col-span-3 flex flex-col overflow-hidden">
-            <div className="h-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl overflow-hidden">
+          {/* Right Column: Phone Pad and Function Calls */}
+          <div className="col-span-3 flex flex-col gap-4 overflow-hidden">
+            {/* Phone Pad - Always visible but disabled when no call */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl">
+              <PhonePad
+                onDigitPress={handleDigitPress}
+                onEndCall={handleEndCall}
+                isCallActive={!!currentCallSid}
+                disabled={!currentCallSid}
+              />
+            </div>
+            <div className="flex-1 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl overflow-hidden">
               <FunctionCallsPanel 
                 items={items} 
                 ws={ws} 
