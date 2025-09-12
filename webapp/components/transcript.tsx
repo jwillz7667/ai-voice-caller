@@ -67,6 +67,8 @@ const Transcript: React.FC<TranscriptProps> = ({ items }) => {
                   msg.transcript ||
                   "";
 
+                const isStreaming = msg.status === "streaming_audio" || msg.status === "running";
+                
                 return (
                   <div 
                     key={i} 
@@ -79,7 +81,7 @@ const Transcript: React.FC<TranscriptProps> = ({ items }) => {
                           : isTool
                           ? "bg-gradient-to-br from-amber-500 to-orange-600 text-white"
                           : "bg-gradient-to-br from-indigo-500 to-purple-600 text-white"
-                      }`}
+                      } ${isStreaming ? 'animate-pulse' : ''}`}
                     >
                       <Icon className="h-5 w-5" />
                     </div>
@@ -109,7 +111,18 @@ const Transcript: React.FC<TranscriptProps> = ({ items }) => {
                           ? "bg-amber-50 dark:bg-amber-900/20 text-gray-800 dark:text-gray-200" 
                           : "bg-indigo-50 dark:bg-indigo-900/20 text-gray-800 dark:text-gray-200"
                       }`}>
-                        {displayText}
+                        {displayText || (
+                          <span className="text-gray-400 italic flex items-center gap-2">
+                            {isStreaming && (
+                              <span className="inline-flex">
+                                <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
+                                <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
+                                <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
+                              </span>
+                            )}
+                            {isStreaming ? 'Transcribing' : 'Processing...'}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

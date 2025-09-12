@@ -173,7 +173,7 @@ const CallInterface = () => {
   };
 
   // Function to handle realtime events
-  const handleRealtimeEvent = (data: any) => {
+  const handleEvent = (data: any) => {
     // Log every event immediately to ensure real-time display
     let source: "client" | "server" | "twilio" = "server";
     
@@ -189,43 +189,9 @@ const CallInterface = () => {
     if (data.type === "session.update") {
       setCallStatus(data.state);
     }
-
-    // Handle conversation items and transcriptions
-    if (data.type === "conversation.item.created" || 
-        data.type === "conversation.item.input_audio_transcription.completed" ||
-        data.type === "response.output_item.added" ||
-        data.type === "response.text.delta" ||
-        data.type === "response.audio_transcript.delta") {
-      if (data.item) {
-        setItems((prev) => {
-          const existingIndex = prev.findIndex(item => item.id === data.item.id);
-          if (existingIndex >= 0) {
-            // Update existing item
-            const updated = [...prev];
-            updated[existingIndex] = { ...updated[existingIndex], ...data.item };
-            return updated;
-          }
-          return [...prev, data.item];
-        });
-      } else if (data.transcript) {
-        // Handle transcript updates
-        setItems((prev) => {
-          const lastItem = prev[prev.length - 1];
-          if (lastItem) {
-            const updated = [...prev];
-            updated[updated.length - 1] = {
-              ...lastItem,
-              formatted: {
-                ...lastItem.formatted,
-                transcript: (lastItem.formatted?.transcript || '') + data.transcript
-              }
-            };
-            return updated;
-          }
-          return prev;
-        });
-      }
-    }
+    
+    // Use the imported handleRealtimeEvent for transcript processing
+    handleRealtimeEvent(data, setItems);
     
     // Handle errors
     if (data.type === "error") {
@@ -236,14 +202,13 @@ const CallInterface = () => {
 
   useEffect(() => {
     if (!ws) {
-      // Create WebSocket connection
-      const websocket = new WebSocket(
-        process.env.NEXT_PUBLIC_WEBSOCKET_URL || "ws://localhost:8081/logs"
-      );
+      // Create WebSocket connection - use /logs endpoint for receiving all events
+      const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL?.replace(/\/$/, '') || "ws://localhost:8081";
+      const websocket = new WebSocket(`${wsUrl}/logs`);
 
       // Log connection attempt
       addLogEvent("connection_attempt", "client", {
-        url: process.env.NEXT_PUBLIC_WEBSOCKET_URL || "ws://localhost:8081/logs",
+        url: `${wsUrl}/logs`,
       });
 
       // Set up event handlers
@@ -259,7 +224,7 @@ const CallInterface = () => {
         try {
           const data = JSON.parse(event.data);
           // Pass the data to the event handler
-          handleRealtimeEvent(data);
+          handleEvent(data);
         } catch (e) {
           console.error("Error parsing WebSocket message:", e);
           addLogEvent("error", "client", {

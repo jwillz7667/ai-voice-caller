@@ -149,29 +149,29 @@ export default function RecordingsPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
+    <div className="container mx-auto px-4 py-4 md:py-8">
+      <div className="mb-4 md:mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Call Recordings</h1>
-            <p className="text-muted-foreground mt-2">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Call Recordings</h1>
+            <p className="text-sm md:text-base text-muted-foreground mt-1 md:mt-2">
               Listen to and download your call recordings
             </p>
           </div>
-          <Link href="/dashboard">
-            <Button variant="outline">Back to Dashboard</Button>
+          <Link href="/dashboard" className="w-full sm:w-auto">
+            <Button variant="outline" className="w-full sm:w-auto">Back to Dashboard</Button>
           </Link>
         </div>
       </div>
 
       {recordings.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Phone className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg font-medium">No recordings yet</p>
-            <p className="text-muted-foreground mt-2">Your call recordings will appear here</p>
-            <Link href="/dashboard">
-              <Button className="mt-4">Make a Call</Button>
+          <CardContent className="flex flex-col items-center justify-center py-8 md:py-12">
+            <Phone className="h-10 w-10 md:h-12 md:w-12 text-muted-foreground mb-4" />
+            <p className="text-base md:text-lg font-medium">No recordings yet</p>
+            <p className="text-sm md:text-base text-muted-foreground mt-2 text-center">Your call recordings will appear here</p>
+            <Link href="/dashboard" className="w-full sm:w-auto">
+              <Button className="mt-4 w-full sm:w-auto">Make a Call</Button>
             </Link>
           </CardContent>
         </Card>
@@ -180,41 +180,46 @@ export default function RecordingsPage() {
           <div className="grid gap-4">
             {recordings.map((recording) => (
               <Card key={recording.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <Phone className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <CardTitle className="text-lg">
+                <CardHeader className="p-4 md:p-6">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="flex items-start sm:items-center gap-3 md:gap-4">
+                      <Phone className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground mt-1 sm:mt-0" />
+                      <div className="flex-1">
+                        <CardTitle className="text-base md:text-lg break-all">
                           {recording.callLog.phoneNumber}
                         </CardTitle>
-                        <CardDescription className="flex items-center gap-2 mt-1">
-                          <Calendar className="h-3 w-3" />
-                          {formatDate(recording.callLog.startedAt)}
-                          <span className="mx-2">•</span>
-                          <Clock className="h-3 w-3" />
-                          {formatDuration(recording.duration)}
+                        <CardDescription className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1 text-xs md:text-sm">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {formatDate(recording.callLog.startedAt)}
+                          </span>
+                          <span className="hidden sm:inline mx-1">•</span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {formatDuration(recording.duration)}
+                          </span>
                         </CardDescription>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant={recording.callLog.direction === 'outbound' ? 'default' : 'secondary'}>
+                      <Badge variant={recording.callLog.direction === 'outbound' ? 'default' : 'secondary'} className="text-xs">
                         {recording.callLog.direction}
                       </Badge>
-                      <Badge variant={recording.status === 'completed' ? 'default' : 'secondary'}>
+                      <Badge variant={recording.status === 'completed' ? 'default' : 'secondary'} className="text-xs">
                         {recording.status}
                       </Badge>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2">
+                <CardContent className="p-4 md:p-6 pt-0 md:pt-0">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <Button
                       size="sm"
                       variant={playingId === recording.id ? 'secondary' : 'outline'}
                       onClick={() => handlePlay(recording.id, recording.recordingUrl)}
+                      className="w-full sm:w-auto text-xs sm:text-sm"
                     >
-                      <Play className="h-4 w-4 mr-1" />
+                      <Play className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                       {playingId === recording.id ? 'Stop' : 'Play'}
                     </Button>
                     <Button
@@ -225,14 +230,16 @@ export default function RecordingsPage() {
                         recording.callLog.phoneNumber,
                         recording.callLog.startedAt
                       )}
+                      className="w-full sm:w-auto text-xs sm:text-sm"
                     >
-                      <Download className="h-4 w-4 mr-1" />
+                      <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                       Download
                     </Button>
                     <audio
                       id={`audio-${recording.id}`}
                       src={recording.recordingUrl.includes('.mp3') ? recording.recordingUrl : `${recording.recordingUrl}.mp3`}
                       className="hidden"
+                      preload="none"
                     />
                   </div>
                 </CardContent>
