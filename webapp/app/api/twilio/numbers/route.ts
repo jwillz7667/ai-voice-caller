@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   // Static exports don't support server-side API routes with dynamic behavior
   // Return a static response for the build process

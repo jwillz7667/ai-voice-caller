@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { validateSession } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 const CREDITS_PER_MINUTE = 1; // 1 credit per minute of call
 
 export async function POST(request: NextRequest) {
