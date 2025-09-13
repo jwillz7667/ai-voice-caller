@@ -12,7 +12,10 @@ import PhoneNumberChecklist from "@/components/phone-number-checklist";
 import OutgoingCall from "@/components/outgoing-call";
 import RealtimeLogs from "@/components/realtime-logs-panel";
 import PhonePad from "@/components/phone-pad";
+import CallHistoryPanel from "@/components/call-history-panel";
+import SavedConfigsPanel from "@/components/saved-configs-panel";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface LogEntry {
   timestamp: string;
@@ -356,11 +359,18 @@ const CallInterface = () => {
           
           {/* Collapsible Panels */}
           <details className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
-            <summary className="p-4 cursor-pointer font-semibold">Configuration</summary>
+            <summary className="p-4 cursor-pointer font-semibold">Configuration & History</summary>
             <div className="p-4 pt-0 h-[60vh] overflow-hidden">
-              <SessionConfigurationPanel
-                callStatus={callStatus}
-                onSave={async (config) => {
+              <Tabs defaultValue="config" className="h-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="config">Config</TabsTrigger>
+                  <TabsTrigger value="saved">Saved</TabsTrigger>
+                  <TabsTrigger value="history">History</TabsTrigger>
+                </TabsList>
+                <TabsContent value="config" className="h-[calc(100%-40px)]">
+                  <SessionConfigurationPanel
+                    callStatus={callStatus}
+                    onSave={async (config) => {
                   setSessionConfig(config);
                   const updateEvent = {
                     type: "session.update",
@@ -390,8 +400,35 @@ const CallInterface = () => {
                   } catch (e) {
                     console.warn("Failed to persist session config to backend:", e);
                   }
-                }}
-              />
+                    }}
+                  />
+                </TabsContent>
+                <TabsContent value="saved" className="h-[calc(100%-40px)]">
+                  <SavedConfigsPanel
+                    currentConfig={sessionConfig}
+                    onLoadConfiguration={(config) => {
+                      setSessionConfig(config);
+                      // Send update to backend
+                      sendMessage({
+                        type: "session.update",
+                        session: config
+                      });
+                    }}
+                  />
+                </TabsContent>
+                <TabsContent value="history" className="h-[calc(100%-40px)]">
+                  <CallHistoryPanel
+                    onLoadConfiguration={(config) => {
+                      setSessionConfig(config);
+                      // Send update to backend
+                      sendMessage({
+                        type: "session.update",
+                        session: config
+                      });
+                    }}
+                  />
+                </TabsContent>
+              </Tabs>
             </div>
           </details>
           
@@ -464,7 +501,34 @@ const CallInterface = () => {
                     console.warn("Failed to persist session config to backend:", e);
                   }
                 }}
-              />
+                  />
+                </TabsContent>
+                <TabsContent value="saved" className="flex-1 overflow-hidden p-4">
+                  <SavedConfigsPanel
+                    currentConfig={sessionConfig}
+                    onLoadConfiguration={(config) => {
+                      setSessionConfig(config);
+                      // Send update to backend
+                      sendMessage({
+                        type: "session.update",
+                        session: config
+                      });
+                    }}
+                  />
+                </TabsContent>
+                <TabsContent value="history" className="flex-1 overflow-hidden p-4">
+                  <CallHistoryPanel
+                    onLoadConfiguration={(config) => {
+                      setSessionConfig(config);
+                      // Send update to backend
+                      sendMessage({
+                        type: "session.update",
+                        session: config
+                      });
+                    }}
+                  />
+                </TabsContent>
+              </Tabs>
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl h-48">
               <div className="flex justify-between items-center mb-2">

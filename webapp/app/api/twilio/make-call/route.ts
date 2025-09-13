@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create call log entry
+    // Create call log entry with configuration
     if (userId) {
       try {
         await prisma.callLog.create({
@@ -92,6 +92,8 @@ export async function POST(request: NextRequest) {
             status: call.status || "initiated",
             startedAt: new Date(),
             duration: 0, // Will be updated when call completes
+            configuration: config || null, // Store the configuration used
+            sessionId: call.sid // Use callSid as sessionId initially
           }
         });
         console.log("Call log created for SID:", call.sid);
