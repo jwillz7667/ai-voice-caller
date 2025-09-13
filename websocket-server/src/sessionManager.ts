@@ -334,7 +334,7 @@ function handleTwilioMessage(data: RawData) {
       session.latestMediaTimestamp = 0;
       session.lastAssistantItem = undefined;
       session.responseStartTimestamp = undefined;
-      console.log("Call started with SID:", session.callSid);
+      console.log("Call started - StreamSID:", session.streamSid, "CallSID:", session.callSid);
       tryConnectModel();
       break;
     case "media":
@@ -670,6 +670,14 @@ function handleModelMessage(data: RawData) {
     case "response.audio.delta":
     case "response.output_audio.delta":
       // Streamed base64 g711_ulaw chunks
+      if (!session.twilioConn || !session.streamSid) {
+        console.error("Audio delta received but no Twilio connection:", {
+          hasTwilioConn: !!session.twilioConn,
+          hasStreamSid: !!session.streamSid,
+          streamSid: session.streamSid,
+          twilioReadyState: session.twilioConn?.readyState
+        });
+      }
       if (session.twilioConn && session.streamSid) {
         if (session.responseStartTimestamp === undefined) {
           session.responseStartTimestamp = session.latestMediaTimestamp || 0;
