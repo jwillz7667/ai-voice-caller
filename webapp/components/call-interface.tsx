@@ -371,35 +371,35 @@ const CallInterface = () => {
                   <SessionConfigurationPanel
                     callStatus={callStatus}
                     onSave={async (config) => {
-                  setSessionConfig(config);
-                  const updateEvent = {
-                    type: "session.update",
-                    session: {
-                      instructions: config.instructions,
-                      voice: config.voice,
-                      model: config.model,
-                      prompt: config.prompt,
-                      tools: config.tools,
-                      turn_detection: config.turn_detection,
-                      temperature: config.temperature,
-                      transcription: (config as any).input_audio_transcription || (config as any).transcription,
-                      max_output_tokens: (config as any).max_response_output_tokens ?? (config as any).max_output_tokens,
-                      recordCall: config.recordCall,
-                    },
-                  };
-                  console.log("Sending update event:", updateEvent);
-                  sendMessage(updateEvent);
+                      setSessionConfig(config);
+                      const updateEvent = {
+                        type: "session.update",
+                        session: {
+                          instructions: config.instructions,
+                          voice: config.voice,
+                          model: config.model,
+                          prompt: config.prompt,
+                          tools: config.tools,
+                          turn_detection: config.turn_detection,
+                          temperature: config.temperature,
+                          transcription: (config as any).input_audio_transcription || (config as any).transcription,
+                          max_output_tokens: (config as any).max_response_output_tokens ?? (config as any).max_output_tokens,
+                          recordCall: config.recordCall,
+                        },
+                      };
+                      console.log("Sending update event:", updateEvent);
+                      sendMessage(updateEvent);
 
-                  // Persist for next calls on the backend
-                  try {
-                    await fetch("http://localhost:8081/session-config", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify(config),
-                    });
-                  } catch (e) {
-                    console.warn("Failed to persist session config to backend:", e);
-                  }
+                      // Persist for next calls on the backend
+                      try {
+                        await fetch("http://localhost:8081/session-config", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify(config),
+                        });
+                      } catch (e) {
+                        console.warn("Failed to persist session config to backend:", e);
+                      }
                     }}
                   />
                 </TabsContent>
@@ -465,10 +465,17 @@ const CallInterface = () => {
         
         {/* Desktop Layout */}
         <div className="hidden lg:grid grid-cols-12 gap-4 lg:gap-6 h-[calc(100vh-8rem)]">
-          {/* Left Column */}
+          {/* Left Column - Configuration and History */}
           <div className="col-span-3 flex flex-col gap-4 overflow-hidden">
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-xl flex-1 overflow-hidden">
-              <SessionConfigurationPanel
+              <Tabs defaultValue="config" className="h-full flex flex-col">
+                <TabsList className="m-4 mb-0 grid w-[calc(100%-32px)] grid-cols-3">
+                  <TabsTrigger value="config">Config</TabsTrigger>
+                  <TabsTrigger value="saved">Saved</TabsTrigger>
+                  <TabsTrigger value="history">History</TabsTrigger>
+                </TabsList>
+                <TabsContent value="config" className="flex-1 overflow-hidden">
+                  <SessionConfigurationPanel
                 callStatus={callStatus}
                 onSave={async (config) => {
                   setSessionConfig(config);
