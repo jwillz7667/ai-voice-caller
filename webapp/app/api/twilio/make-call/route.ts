@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import twilio from "twilio";
+import { prisma } from "@/lib/prisma";
+import { cookies } from "next/headers";
+import jwt from "jsonwebtoken";
 
 export const dynamic = 'force-dynamic';
 
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+
 export async function POST(request: NextRequest) {
   try {
-    const { phoneNumber, config } = await request.json();
+    const { phoneNumber, config, userId: requestUserId } = await request.json();
     
     if (!phoneNumber) {
       return NextResponse.json(
@@ -60,15 +65,42 @@ export async function POST(request: NextRequest) {
       recordingStatusCallbackEvent: ['completed']
     });
 
-    // Store the callSid in session or database for later reference
-    // You might want to create a call log entry here
-    try {
-      // This is a placeholder - you should associate this with the current user
-      // For now, we'll just log it
-      console.log("Call initiated with SID:", call.sid);
-      // TODO: Create call log entry with callSid
-    } catch (error) {
-      console.error("Failed to store call log:", error);
+    // Get user ID from auth token or request
+    let userId = requestUserId;
+    if (!userId) {
+      try {
+        const cookieStore = cookies();
+        const token = cookieStore.get("auth-token");
+        if (token) {
+          const decoded = jwt.verify(token.value, JWT_SECRET) as any;
+          userId = decoded.userId;
+        }
+      } catch (error) {
+        console.error("Failed to get user ID from token:", error);
+      }
+    }
+
+    // Create call log entry
+    if (userId) {
+      try {
+        await prisma.callLog.create({
+          data: {
+            userId,
+            callSid: call.sid,
+            phoneNumber,
+            direction: "outbound",
+            status: call.status || "initiated",
+            startedAt: new Date(),
+            duration: 0, // Will be updated when call completes
+          }
+        });
+        console.log("Call log created for SID:", call.sid);
+      } catch (error) {
+        console.error("Failed to create call log:", error);
+        // Don't fail the call, just log the error
+      }
+    } else {
+      console.warn("No user ID available, call log not created");
     }
 
     return NextResponse.json({

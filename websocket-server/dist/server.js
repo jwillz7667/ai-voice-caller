@@ -310,9 +310,23 @@ app.post("/session-config", express_1.default.json(), (req, res) => {
     }
 });
 // Add call status callback endpoint (Twilio posts x-www-form-urlencoded)
-app.all("/call-status", express_1.default.urlencoded({ extended: false }), (req, res) => {
+app.all("/call-status", express_1.default.urlencoded({ extended: false }), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         console.log("Call status update received:", req.body);
+        // Forward to webapp for database updates
+        try {
+            const webappUrl = process.env.WEBAPP_URL || 'http://localhost:3000';
+            yield fetch(`${webappUrl}/api/twilio/call-status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams(req.body).toString()
+            });
+        }
+        catch (error) {
+            console.error('Failed to notify webapp of call status:', error);
+        }
         // Send 204 No Content response for Twilio
         res.status(204).send();
     }
@@ -320,7 +334,7 @@ app.all("/call-status", express_1.default.urlencoded({ extended: false }), (req,
         console.error("Error handling call status:", error);
         res.status(204).send();
     }
-});
+}));
 // Add recording status callback endpoint (Twilio posts x-www-form-urlencoded)
 app.all("/recording-status", express_1.default.urlencoded({ extended: false }), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
