@@ -2,6 +2,7 @@ import { RawData, WebSocket } from "ws";
 import functions from "./functionHandlers";
 import { isKnownRealtimeEvent } from './realtimeEvents';
 import twilio from 'twilio';
+import { dtmfHandler, DTMFHandler } from './dtmfHandler';
 
 // µ-law decoding table
 const MULAW_DECODE_TABLE = new Int16Array([
@@ -276,35 +277,41 @@ async function handleFunctionCall(item: { name: string; arguments: string }) {
         }
       }
       
-      // Handle DTMF dial tones
+      // Handle DTMF dial tones using the DTMFHandler
       if (parsedResult.action === "dial" && parsedResult.digits) {
         console.log("Sending DTMF tones:", parsedResult.digits);
-        
-        if (session.callSid) {
-          // Use Twilio REST API to send DTMF tones
-          // Import twilio at the top of the file
-          const accountSid = process.env.TWILIO_ACCOUNT_SID;
-          const authToken = process.env.TWILIO_AUTH_TOKEN;
-          
-          if (accountSid && authToken) {
-            try {
-              const client = twilio(accountSid, authToken);
-              
-              // Send DTMF tones via Twilio API
-              await client.calls(session.callSid)
-                .update({
-                  twiml: `<Response><Play digits="${parsedResult.digits}"/></Response>`
-                });
-              
-              console.log(`DTMF tones '${parsedResult.digits}' sent to call ${session.callSid}`);
-            } catch (error) {
-              console.error("Error sending DTMF tones:", error);
+
+        if (session.callSid && session.streamSid) {
+          // Set the call context for the DTMF handler
+          dtmfHandler.setCallContext(session.callSid, session.streamSid);
+
+          // Send DTMF sequence with proper timing
+          const success = await dtmfHandler.sendDTMFSequence(parsedResult.digits);
+
+          if (success) {
+            console.log(`DTMF tones '${parsedResult.digits}' sent successfully`);
+
+            // Notify frontend about DTMF being sent
+            if (session.frontendConn) {
+              jsonSend(session.frontendConn, {
+                type: "dtmf_sent",
+                digits: parsedResult.digits,
+                timestamp: new Date().toISOString()
+              });
             }
           } else {
-            console.error("Twilio credentials not configured for DTMF");
+            console.error("Failed to send DTMF tones");
           }
         } else {
-          console.error("No call SID available to send DTMF");
+          console.error("No call SID or stream SID available to send DTMF");
+        }
+      }
+
+      // Handle IVR navigation if specified
+      if (parsedResult.action === "navigate_ivr" && parsedResult.options) {
+        if (session.callSid && session.streamSid) {
+          dtmfHandler.setCallContext(session.callSid, session.streamSid);
+          await dtmfHandler.navigateIVR(parsedResult.options);
         }
       }
     } catch (e) {
@@ -346,6 +353,38 @@ function handleTwilioMessage(data: RawData) {
         });
       }
       break;
+    case "dtmf":
+      // Handle incoming DTMF from Twilio (user pressed a key)
+      console.log("Received DTMF from Twilio:", msg.dtmf);
+
+      const dtmfData = dtmfHandler.handleIncomingDTMF(msg);
+
+      // Forward to OpenAI if needed
+      if (isOpen(session.modelConn)) {
+        // Send as a user message to OpenAI
+        jsonSend(session.modelConn, {
+          type: "conversation.item.create",
+          item: {
+            type: "message",
+            role: "user",
+            content: [{
+              type: "text",
+              text: `User pressed key: ${dtmfData.digit}`
+            }]
+          }
+        });
+      }
+
+      // Notify frontend about received DTMF
+      if (session.frontendConn) {
+        jsonSend(session.frontendConn, {
+          type: "dtmf_received",
+          digit: dtmfData.digit,
+          timestamp: dtmfData.timestamp,
+          source: "twilio"
+        });
+      }
+      break;
     case "close":
       closeAllConnections();
       break;
@@ -356,22 +395,86 @@ function handleFrontendMessage(data: RawData) {
   const msg = parseMessage(data);
   if (!msg) return;
 
-  // Handle DTMF messages
-  if (msg.type === "dtmf" && msg.digit && session.twilioConn) {
-    console.log("Sending DTMF digit:", msg.digit);
-    const dtmfMessage = {
-      event: "dtmf",
-      streamSid: session.streamSid,
-      dtmf: msg.digit
-    };
-    jsonSend(session.twilioConn, dtmfMessage);
-    
-    // Also notify the frontend about the DTMF being sent
-    if (session.frontendConn) {
-      jsonSend(session.frontendConn, {
-        type: "dtmf_sent",
-        digit: msg.digit,
-        timestamp: new Date().toISOString()
+  // Handle DTMF messages with improved functionality
+  if (msg.type === "dtmf" && msg.digit) {
+    console.log("Processing DTMF request:", msg.digit);
+
+    if (session.callSid && session.streamSid) {
+      // Set the call context
+      dtmfHandler.setCallContext(session.callSid, session.streamSid);
+
+      // Validate DTMF input
+      const formattedDigits = DTMFHandler.formatForDTMF(msg.digit);
+      if (!DTMFHandler.isValidDTMF(formattedDigits)) {
+        console.error("Invalid DTMF digits:", msg.digit);
+        if (session.frontendConn) {
+          jsonSend(session.frontendConn, {
+            type: "dtmf_error",
+            error: "Invalid DTMF digits",
+            digit: msg.digit
+          });
+        }
+        return;
+      }
+
+      // Send DTMF based on type
+      if (msg.sequence) {
+        // Send as a sequence with timing
+        dtmfHandler.sendDTMFSequence(formattedDigits).then(success => {
+          if (session.frontendConn) {
+            jsonSend(session.frontendConn, {
+              type: success ? "dtmf_sent" : "dtmf_error",
+              digits: formattedDigits,
+              timestamp: new Date().toISOString()
+            });
+          }
+        });
+      } else if (msg.queue) {
+        // Queue for sequential sending
+        dtmfHandler.queueDTMF(formattedDigits, msg.delayBetween || 100);
+        if (session.frontendConn) {
+          jsonSend(session.frontendConn, {
+            type: "dtmf_queued",
+            digits: formattedDigits,
+            queueStatus: dtmfHandler.getQueueStatus()
+          });
+        }
+      } else {
+        // Send immediately via API
+        dtmfHandler.sendDTMFViaAPI(formattedDigits).then(success => {
+          if (session.frontendConn) {
+            jsonSend(session.frontendConn, {
+              type: success ? "dtmf_sent" : "dtmf_error",
+              digit: formattedDigits,
+              timestamp: new Date().toISOString()
+            });
+          }
+        });
+      }
+    } else {
+      console.error("No call context for DTMF");
+      if (session.frontendConn) {
+        jsonSend(session.frontendConn, {
+          type: "dtmf_error",
+          error: "No active call"
+        });
+      }
+    }
+    return;
+  }
+
+  // Handle IVR navigation requests
+  if (msg.type === "navigate_ivr" && msg.options) {
+    if (session.callSid && session.streamSid) {
+      dtmfHandler.setCallContext(session.callSid, session.streamSid);
+      dtmfHandler.navigateIVR(msg.options).then(success => {
+        if (session.frontendConn) {
+          jsonSend(session.frontendConn, {
+            type: "ivr_navigation_complete",
+            success,
+            options: msg.options
+          });
+        }
       });
     }
     return;

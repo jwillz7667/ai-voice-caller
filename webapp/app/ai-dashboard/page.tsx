@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import CallInterface from '@/components/call-interface';
+import DTMFPhonePad from '@/components/dtmf-phone-pad';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';

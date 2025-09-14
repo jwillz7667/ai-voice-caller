@@ -15,7 +15,9 @@ RUN npm ci --only=production && \
 COPY src/ ./src/
 
 # Build TypeScript
-RUN npm run build
+RUN npx tsc && \
+    mkdir -p dist && \
+    cp -r src/twiml.xml dist/ 2>/dev/null || true
 
 # Production stage
 FROM node:18-alpine
