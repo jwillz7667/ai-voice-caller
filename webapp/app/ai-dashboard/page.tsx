@@ -374,6 +374,7 @@ Keep responses concise and natural. You have access to various tools to help the
 
   const navigationItems = [
     { href: '/ai-dashboard', label: 'Dashboard', icon: Home },
+    { href: '/incoming-config', label: 'Incoming Calls', icon: PhoneCall },
     { href: '/recordings', label: 'Recordings', icon: History },
     { href: '/logs', label: 'Call Logs', icon: FileText },
     { href: '/settings', label: 'Settings', icon: Settings },

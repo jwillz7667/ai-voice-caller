@@ -53,6 +53,7 @@ model User {
   organizations      OrganizationMember[]
   passwordResets     PasswordReset[]
   savedConfigs       SavedConfiguration[]
+  incomingCallConfigs IncomingCallConfig[]
   sessions           Session[]
   webhooks           Webhook[]
 
@@ -434,6 +435,32 @@ model SavedConfiguration {
   @@index([isTemplate])
   @@index([category])
   @@map("saved_configurations")
+}
+
+model IncomingCallConfig {
+  id               String    @id @default(cuid())
+  userId           String    @map("user_id")
+  name             String    @default("Default Incoming Call Configuration")
+  isActive         Boolean   @default(true) @map("is_active")
+  model            String    @default("gpt-realtime")
+  instructions     String    @db.Text
+  voice            String    @default("ash")
+  temperature      Float     @default(0.8)
+  maxTokens        Int       @default(4096) @map("max_tokens")
+  tools            Json      @default("[]")
+  turnDetection    Json      @map("turn_detection") @default("{\"type\":\"server_vad\",\"threshold\":0.5,\"prefix_padding_ms\":300,\"silence_duration_ms\":500}")
+  inputAudioFormat String    @default("pcm16") @map("input_audio_format")
+  outputAudioFormat String   @default("pcm16") @map("output_audio_format")
+  inputAudioTranscription Json? @map("input_audio_transcription")
+  metadata         Json?
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, isActive])
+  @@index([userId])
+  @@index([isActive])
+  @@map("incoming_call_configs")
 }
 
 model Analytics {

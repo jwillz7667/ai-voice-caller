@@ -159,10 +159,30 @@ interface Session {
 
 let session: Session = {};
 
-export function handleCallConnection(ws: WebSocket, openAIApiKey: string) {
+export async function handleCallConnection(ws: WebSocket, openAIApiKey: string) {
   cleanupConnection(session.twilioConn);
   session.twilioConn = ws;
   session.openAIApiKey = openAIApiKey;
+
+  // Fetch incoming call configuration from the webapp
+  try {
+    const webappUrl = process.env.WEBAPP_URL || 'http://localhost:3000';
+    const response = await fetch(`${webappUrl}/api/incoming-config/fetch`);
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.config) {
+        console.log("Loaded incoming call configuration from database");
+        // Store the configuration in the session
+        session.saved_config = data.config;
+      }
+    } else {
+      console.warn("Failed to fetch incoming call configuration, using defaults");
+    }
+  } catch (error) {
+    console.error("Error fetching incoming call configuration:", error);
+    // Continue with defaults if fetch fails
+  }
 
   ws.on("message", handleTwilioMessage);
   ws.on("error", ws.close);

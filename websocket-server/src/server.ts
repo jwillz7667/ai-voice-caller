@@ -407,7 +407,9 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
 
   if (req.url === "/call") {
     console.log("New Twilio call connection established");
-    sessionManager.handleCallConnection(ws, OPENAI_API_KEY);
+    sessionManager.handleCallConnection(ws, OPENAI_API_KEY).catch(err => {
+      console.error("Error handling call connection:", err);
+    });
   } else if (req.url === "/logs") {
     console.log("New frontend logs connection established");
     sessionManager.handleFrontendConnection(ws);

@@ -109,41 +109,63 @@ function amplifyMuLawAudio(base64Audio, gainFactor) {
 }
 let session = {};
 function handleCallConnection(ws, openAIApiKey) {
-    cleanupConnection(session.twilioConn);
-    session.twilioConn = ws;
-    session.openAIApiKey = openAIApiKey;
-    ws.on("message", handleTwilioMessage);
-    ws.on("error", ws.close);
-    ws.on("close", () => {
-        cleanupConnection(session.modelConn);
+    return __awaiter(this, void 0, void 0, function* () {
         cleanupConnection(session.twilioConn);
-        session.twilioConn = undefined;
-        session.modelConn = undefined;
-        session.streamSid = undefined;
-        session.callSid = undefined;
-        session.lastAssistantItem = undefined;
-        session.responseStartTimestamp = undefined;
-        session.latestMediaTimestamp = undefined;
-        session.hadSpeechSinceLastCommit = undefined;
-        session.userSpeechStartTimestamp = undefined;
-        if (!session.frontendConn)
-            session = {};
-    });
-    // Keep-alive pings for Twilio media stream connection
-    const pingInterval = setInterval(() => {
-        var _a, _b;
+        session.twilioConn = ws;
+        session.openAIApiKey = openAIApiKey;
+        // Fetch incoming call configuration from the webapp
         try {
-            if (isOpen(session.twilioConn)) {
-                (_b = (_a = session.twilioConn).ping) === null || _b === void 0 ? void 0 : _b.call(_a);
+            const webappUrl = process.env.WEBAPP_URL || 'http://localhost:3000';
+            const response = yield fetch(`${webappUrl}/api/incoming-config/fetch`);
+            if (response.ok) {
+                const data = yield response.json();
+                if (data.config) {
+                    console.log("Loaded incoming call configuration from database");
+                    // Store the configuration in the session
+                    session.saved_config = data.config;
+                }
             }
             else {
-                clearInterval(pingInterval);
+                console.warn("Failed to fetch incoming call configuration, using defaults");
             }
         }
-        catch (_c) {
-            clearInterval(pingInterval);
+        catch (error) {
+            console.error("Error fetching incoming call configuration:", error);
+            // Continue with defaults if fetch fails
         }
-    }, 20000);
+        ws.on("message", handleTwilioMessage);
+        ws.on("error", ws.close);
+        ws.on("close", () => {
+            cleanupConnection(session.modelConn);
+            cleanupConnection(session.twilioConn);
+            session.twilioConn = undefined;
+            session.modelConn = undefined;
+            session.streamSid = undefined;
+            session.callSid = undefined;
+            session.lastAssistantItem = undefined;
+            session.responseStartTimestamp = undefined;
+            session.latestMediaTimestamp = undefined;
+            session.hadSpeechSinceLastCommit = undefined;
+            session.userSpeechStartTimestamp = undefined;
+            if (!session.frontendConn)
+                session = {};
+        });
+        // Keep-alive pings for Twilio media stream connection
+        const pingInterval = setInterval(() => {
+            var _a, _b;
+            try {
+                if (isOpen(session.twilioConn)) {
+                    (_b = (_a = session.twilioConn).ping) === null || _b === void 0 ? void 0 : _b.call(_a);
+                }
+                else {
+                    clearInterval(pingInterval);
+                }
+            }
+            catch (_c) {
+                clearInterval(pingInterval);
+            }
+        }, 20000);
+    });
 }
 function handleFrontendConnection(ws) {
     cleanupConnection(session.frontendConn);
