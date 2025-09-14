@@ -36,7 +36,6 @@ gcloud run deploy $SERVICE_NAME \
     --min-instances 0 \
     --port 8081 \
     --set-env-vars "NODE_ENV=production" \
-    --set-env-vars "PORT=8081" \
     --set-env-vars "OPENAI_API_KEY=${OPENAI_API_KEY}" \
     --set-env-vars "TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}" \
     --set-env-vars "TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}" \
