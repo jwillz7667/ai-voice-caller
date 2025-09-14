@@ -16,7 +16,7 @@ export default function Header() {
       <div className="container flex h-16 items-center">
         <div className="flex items-center gap-2 mr-4">
           <Link href="/" className="flex items-center space-x-2">
-            <span className="text-xl font-bold">Jingle.AI</span>
+            <span className="text-xl font-bold">Verbio</span>
           </Link>
         </div>
         

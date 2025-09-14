@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,53 +8,517 @@ datasource db {
 }
 
 model User {
-  id             String            @id @default(cuid())
-  email          String            @unique
-  password       String
-  name           String?
-  phone          String?
-  company        String?
-  jobTitle       String?           @map("job_title")
-  avatarUrl      String?           @map("avatar_url")
-  credits        Int               @default(100)
-  emailVerified  Boolean           @default(false) @map("email_verified")
-  createdAt      DateTime          @default(now()) @map("created_at")
-  updatedAt      DateTime          @updatedAt @map("updated_at")
-  
-  transactions   CreditTransaction[]
-  callLogs       CallLog[]
-  sessions       Session[]
-  savedConfigs   SavedConfiguration[]
-  
+  id                 String               @id @default(cuid())
+  email              String               @unique
+  emailVerified      Boolean              @default(false) @map("email_verified")
+  emailVerifiedAt    DateTime?            @map("email_verified_at")
+  password           String?
+  name               String?
+  username           String?              @unique
+  phone              String?
+  phoneVerified      Boolean              @default(false) @map("phone_verified")
+  company            String?
+  jobTitle           String?              @map("job_title")
+  avatarUrl          String?              @map("avatar_url")
+  bio                String?
+  timezone           String               @default("UTC")
+  locale             String               @default("en")
+  status             UserStatus           @default(ACTIVE)
+  role               UserRole             @default(USER)
+  permissions        String[]             @default([])
+  twoFactorEnabled   Boolean              @default(false) @map("two_factor_enabled")
+  twoFactorSecret    String?              @map("two_factor_secret")
+  lastLoginAt        DateTime?            @map("last_login_at")
+  lastLoginIp        String?              @map("last_login_ip")
+  loginCount         Int                  @default(0) @map("login_count")
+  failedLoginCount   Int                  @default(0) @map("failed_login_count")
+  lockedUntil        DateTime?            @map("locked_until")
+  credits            Int                  @default(100)
+  creditBalance      Float                @default(0) @map("credit_balance")
+  stripeCustomerId   String?              @unique @map("stripe_customer_id")
+  metadata           Json?
+  tags               String[]             @default([])
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
+  deletedAt          DateTime?            @map("deleted_at")
+  accounts           Account[]
+  apiKeys            ApiKey[]
+  auditLogs          AuditLog[]
+  callLogs           CallLog[]
+  transactions       CreditTransaction[]
+  emailVerifications EmailVerification[]
+  invitesSent        Invite[]             @relation("InviteSender")
+  invitesReceived    Invite[]             @relation("InviteRecipient")
+  notifications      Notification[]
+  organizations      OrganizationMember[]
+  passwordResets     PasswordReset[]
+  savedConfigs       SavedConfiguration[]
+  sessions           Session[]
+  webhooks           Webhook[]
+
+  @@index([email])
+  @@index([username])
+  @@index([status])
+  @@index([role])
+  @@index([createdAt])
   @@map("users")
 }
 
-model Session {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  token     String   @unique
-  expiresAt DateTime @map("expires_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+model Account {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String   @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  metadata          Json?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
   @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  userAgent    String?  @map("user_agent")
+  ip           String?
+  lastActivity DateTime @default(now()) @map("last_activity")
+  createdAt    DateTime @default(now()) @map("created_at")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionToken])
+  @@index([expires])
   @@map("sessions")
 }
 
-model CreditTransaction {
-  id              String            @id @default(cuid())
-  userId          String            @map("user_id")
-  amount          Int
-  transactionType TransactionType   @map("transaction_type")
-  paymentId       String?           @map("payment_id")
-  description     String?
-  createdAt       DateTime          @default(now()) @map("created_at")
-  
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  token     String    @unique
+  expires   DateTime
+  used      Boolean   @default(false)
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
+  @@index([token])
+  @@map("password_resets")
+}
+
+model EmailVerification {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  email     String
+  token     String    @unique
+  expires   DateTime
+  used      Boolean   @default(false)
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([email])
+  @@map("email_verifications")
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  name       String
+  key        String    @unique
+  hashedKey  String    @unique @map("hashed_key")
+  scopes     String[]  @default([])
+  expiresAt  DateTime? @map("expires_at")
+  lastUsedAt DateTime? @map("last_used_at")
+  lastUsedIp String?   @map("last_used_ip")
+  usageCount Int       @default(0) @map("usage_count")
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([key])
+  @@index([hashedKey])
+  @@map("api_keys")
+}
+
+model Organization {
+  id               String               @id @default(cuid())
+  name             String
+  slug             String               @unique
+  description      String?
+  logoUrl          String?              @map("logo_url")
+  website          String?
+  stripeCustomerId String?              @unique @map("stripe_customer_id")
+  billingEmail     String?              @map("billing_email")
+  plan             String               @default("free")
+  credits          Int                  @default(1000)
+  settings         Json?
+  metadata         Json?
+  status           OrganizationStatus   @default(ACTIVE)
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+  invites          Invite[]
+  members          OrganizationMember[]
+
+  @@index([slug])
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id           String       @id @default(cuid())
+  userId       String       @map("user_id")
+  orgId        String       @map("org_id")
+  role         OrgRole      @default(MEMBER)
+  permissions  String[]     @default([])
+  joinedAt     DateTime     @default(now()) @map("joined_at")
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId])
+  @@index([userId])
+  @@index([orgId])
+  @@map("organization_members")
+}
+
+model Invite {
+  id            String        @id @default(cuid())
+  email         String
+  role          OrgRole       @default(MEMBER)
+  token         String        @unique
+  orgId         String?       @map("org_id")
+  invitedById   String        @map("invited_by_id")
+  invitedUserId String?       @map("invited_user_id")
+  status        InviteStatus  @default(PENDING)
+  expiresAt     DateTime      @map("expires_at")
+  acceptedAt    DateTime?     @map("accepted_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  invitedBy     User          @relation("InviteSender", fields: [invitedById], references: [id])
+  invitedUser   User?         @relation("InviteRecipient", fields: [invitedUserId], references: [id])
+  organization  Organization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([token])
+  @@index([orgId])
+  @@map("invites")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  oldValues Json?    @map("old_values")
+  newValues Json?    @map("new_values")
+  metadata  Json?
+  ip        String?
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model RateLimit {
+  id           String    @id @default(cuid())
+  identifier   String
+  endpoint     String
+  count        Int       @default(1)
+  window       String
+  blockedUntil DateTime? @map("blocked_until")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@unique([identifier, endpoint, window])
+  @@index([identifier])
+  @@index([blockedUntil])
+  @@map("rate_limits")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?
+  read      Boolean          @default(false)
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([type])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model Webhook {
+  id            String       @id @default(cuid())
+  userId        String       @map("user_id")
+  url           String
+  events        String[]
+  secret        String
+  active        Boolean      @default(true)
+  failureCount  Int          @default(0) @map("failure_count")
+  lastTriggered DateTime?    @map("last_triggered")
+  metadata      Json?
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  logs          WebhookLog[]
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([active])
+  @@map("webhooks")
+}
+
+model WebhookLog {
+  id         String   @id @default(cuid())
+  webhookId  String   @map("webhook_id")
+  event      String
+  payload    Json
+  response   Json?
+  statusCode Int?     @map("status_code")
+  success    Boolean
+  error      String?
+  duration   Int?
+  createdAt  DateTime @default(now()) @map("created_at")
+  webhook    Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId])
+  @@index([event])
+  @@index([success])
+  @@index([createdAt])
+  @@map("webhook_logs")
+}
+
+model CreditTransaction {
+  id              String          @id @default(cuid())
+  userId          String          @map("user_id")
+  amount          Int
+  balance         Int
+  transactionType TransactionType @map("transaction_type")
+  paymentId       String?         @map("payment_id")
+  stripePaymentId String?         @map("stripe_payment_id")
+  description     String?
+  metadata        Json?
+  createdAt       DateTime        @default(now()) @map("created_at")
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([transactionType])
+  @@index([createdAt])
   @@map("credit_transactions")
+}
+
+model CallLog {
+  id               String        @id @default(cuid())
+  userId           String?       @map("user_id")
+  sessionId        String        @unique @map("session_id")
+  callSid          String?       @unique @map("call_sid")
+  phoneNumber      String        @map("phone_number")
+  direction        CallDirection
+  duration         Int           @default(0)
+  status           CallStatus
+  creditsUsed      Int           @default(0) @map("credits_used")
+  cost             Float         @default(0)
+  fromNumber       String?       @map("from_number")
+  toNumber         String?       @map("to_number")
+  recordingEnabled Boolean       @default(false) @map("recording_enabled")
+  model            String?
+  voice            String?
+  instructions     String?
+  configuration    Json?
+  transcript       Json?
+  summary          String?
+  sentiment        String?
+  keywords         String[]      @default([])
+  metadata         Json?
+  latencyMs        Int?          @map("latency_ms")
+  tokensUsed       Int?          @map("tokens_used")
+  errorCount       Int           @default(0) @map("error_count")
+  startedAt        DateTime?     @map("started_at")
+  answeredAt       DateTime?     @map("answered_at")
+  endedAt          DateTime?     @map("ended_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  events           CallEvent[]
+  user             User?         @relation(fields: [userId], references: [id])
+  recording        Recording?
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([callSid])
+  @@index([status])
+  @@index([direction])
+  @@index([createdAt])
+  @@map("call_logs")
+}
+
+model CallEvent {
+  id        String   @id @default(cuid())
+  callLogId String   @map("call_log_id")
+  eventType String   @map("event_type")
+  eventData Json?    @map("event_data")
+  timestamp DateTime
+  createdAt DateTime @default(now()) @map("created_at")
+  callLog   CallLog  @relation(fields: [callLogId], references: [id], onDelete: Cascade)
+
+  @@index([callLogId])
+  @@index([eventType])
+  @@index([timestamp])
+  @@map("call_events")
+}
+
+model Recording {
+  id               String          @id @default(cuid())
+  callLogId        String          @unique @map("call_log_id")
+  recordingSid     String          @unique @map("recording_sid")
+  recordingUrl     String          @map("recording_url")
+  publicUrl        String?         @map("public_url")
+  duration         Int
+  channels         Int             @default(1)
+  status           RecordingStatus @default(PROCESSING)
+  size             Int?
+  format           String?
+  transcriptionUrl String?         @map("transcription_url")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  callLog          CallLog         @relation(fields: [callLogId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("recordings")
+}
+
+model SavedConfiguration {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  name          String
+  description   String?
+  category      String?
+  configuration Json
+  isPublic      Boolean   @default(false) @map("is_public")
+  isTemplate    Boolean   @default(false) @map("is_template")
+  usageCount    Int       @default(0) @map("usage_count")
+  rating        Float?
+  tags          String[]  @default([])
+  lastUsedAt    DateTime? @map("last_used_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isPublic])
+  @@index([isTemplate])
+  @@index([category])
+  @@map("saved_configurations")
+}
+
+model Analytics {
+  id         String   @id @default(cuid())
+  userId     String?  @map("user_id")
+  event      String
+  properties Json?
+  timestamp  DateTime @default(now())
+  sessionId  String?  @map("session_id")
+  ip         String?
+  userAgent  String?  @map("user_agent")
+  referrer   String?
+  country    String?
+  city       String?
+
+  @@index([userId])
+  @@index([event])
+  @@index([timestamp])
+  @@index([sessionId])
+  @@map("analytics")
+}
+
+model SystemHealth {
+  id        String   @id @default(cuid())
+  service   String
+  status    String
+  latency   Int?
+  uptime    Float?
+  errorRate Float?
+  metadata  Json?
+  checkedAt DateTime @default(now()) @map("checked_at")
+
+  @@index([service])
+  @@index([status])
+  @@index([checkedAt])
+  @@map("system_health")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING
+  BANNED
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MODERATOR
+  USER
+  GUEST
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  TRIAL
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+  GUEST
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  ERROR
+  SUCCESS
+  CALL_COMPLETED
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  CREDITS_LOW
+  SYSTEM
 }
 
 enum TransactionType {
@@ -65,33 +526,8 @@ enum TransactionType {
   USAGE
   REFUND
   BONUS
-}
-
-model CallLog {
-  id              String            @id @default(cuid())
-  userId          String?           @map("user_id")
-  sessionId       String            @unique @map("session_id")
-  callSid         String?           @unique @map("call_sid")
-  phoneNumber     String            @map("phone_number")
-  direction       CallDirection
-  duration        Int               @default(0) // in seconds
-  status          CallStatus
-  creditsUsed     Int               @default(0) @map("credits_used")
-  transcript      Json?
-  metadata        Json?
-  configuration   Json?             // Store the configuration used for this call
-  startedAt       DateTime?         @map("started_at")
-  endedAt         DateTime?         @map("ended_at")
-  createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
-  
-  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
-  recording       Recording?
-  
-  @@index([userId])
-  @@index([sessionId])
-  @@index([callSid])
-  @@map("call_logs")
+  TRANSFER
+  ADJUSTMENT
 }
 
 enum CallDirection {
@@ -101,6 +537,7 @@ enum CallDirection {
 
 enum CallStatus {
   INITIATED
+  QUEUED
   RINGING
   IN_PROGRESS
   COMPLETED
@@ -108,35 +545,12 @@ enum CallStatus {
   NO_ANSWER
   BUSY
   CANCELLED
+  TIMEOUT
 }
 
-model Recording {
-  id              String            @id @default(cuid())
-  callLogId       String            @unique @map("call_log_id")
-  recordingSid    String            @unique @map("recording_sid")
-  recordingUrl    String            @map("recording_url")
-  duration        Int               // in seconds
-  status          String
-  createdAt       DateTime          @default(now()) @map("created_at")
-  
-  callLog         CallLog           @relation(fields: [callLogId], references: [id], onDelete: Cascade)
-  
-  @@map("recordings")
-}
-
-model SavedConfiguration {
-  id              String            @id @default(cuid())
-  userId          String            @map("user_id")
-  name            String
-  description     String?
-  configuration   Json              // The actual configuration object
-  usageCount      Int               @default(0) @map("usage_count")
-  lastUsedAt      DateTime?         @map("last_used_at")
-  createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
-  
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId])
-  @@map("saved_configurations")
+enum RecordingStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+  DELETED
 }

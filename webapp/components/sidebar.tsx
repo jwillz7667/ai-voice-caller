@@ -11,7 +11,10 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Phone
+  Phone,
+  Cpu,
+  Mic,
+  BarChart3
 } from "lucide-react";
 
 type SidebarItemProps = {
@@ -59,7 +62,7 @@ export default function Sidebar() {
     >
       <div className="flex items-center gap-2 px-4 mb-8">
         {!isCollapsed && (
-          <span className="text-xl font-semibold truncate">AI Voice Caller</span>
+          <span className="text-xl font-semibold truncate">Verbio</span>
         )}
         <Button 
           variant="ghost" 
@@ -72,18 +75,10 @@ export default function Sidebar() {
       </div>
       
       <div className="space-y-1 px-2">
-        <SidebarItem
-          icon={<Home size={20} />}
-          label="Dashboard"
-          href="/"
-          isCollapsed={isCollapsed}
-        />
-        <SidebarItem
-          icon={<Phone size={20} />}
-          label="Call Interface"
-          href="/"
-          isCollapsed={isCollapsed}
-        />
+        <SidebarItem icon={<Home size={20} />} label="Dashboard" href="/dashboard" isCollapsed={isCollapsed} />
+        <SidebarItem icon={<Cpu size={20} />} label="AI Dashboard" href="/ai-dashboard" isCollapsed={isCollapsed} />
+        <SidebarItem icon={<Phone size={20} />} label="Call Interface" href="/app" isCollapsed={isCollapsed} />
+        <SidebarItem icon={<Mic size={20} />} label="Recordings" href="/recordings" isCollapsed={isCollapsed} />
         <SidebarItem
           icon={<ClipboardList size={20} />}
           label="Logs"

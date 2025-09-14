@@ -1,12 +1,13 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-export function middleware(request: NextRequest) {
-  // Handle root path - already handled by app/page.tsx
-  
-  // Add any custom redirects here if needed
-  
-  return NextResponse.next()
+export function middleware(req: NextRequest) {
+  // Since auth is handled client-side with auth-context,
+  // we'll let the client handle redirects for now
+  // This can be enhanced later with server-side session checks
+
+  // For now, just handle basic routing
+  return NextResponse.next();
 }
 
 export const config = {

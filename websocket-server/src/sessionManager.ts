@@ -771,7 +771,7 @@ function handleModelMessage(data: RawData) {
     case "mcp_list_tools.in_progress":
       console.log("MCP list tools in progress:", event.item_id);
       break;
-    case "mcp_list_tools.completed":
+    case "mcp_list_tools.completed":``
       console.log("MCP list tools completed:", event.item_id);
       break;
 

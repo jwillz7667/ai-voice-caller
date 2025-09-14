@@ -4,13 +4,18 @@ import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { ToastProvider } from "@/lib/toast-provider";
 import { AuthProvider } from "@/lib/auth-context";
-import ClientLayout from "../components/client-layout";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Jingle.AI - Powered by OpenAI & Twilio",
-  description: "An intelligent voice assistant using OpenAI's Realtime API and Twilio",
+  title: "Verbio - AI Voice Call Solutions",
+  description: "AI-powered inbound and outbound voice calling with OpenAI Realtime and Twilio.",
+  openGraph: {
+    title: "Verbio - AI Voice Call Solutions",
+    description:
+      "AI-powered inbound and outbound voice calling with OpenAI Realtime and Twilio.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
@@ -22,11 +27,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <AuthProvider>
-          <ThemeProvider defaultTheme="light" storageKey="jingle-theme-mode">
+          <ThemeProvider defaultTheme="light" storageKey="verbio-theme-mode">
             <ToastProvider />
-            <ClientLayout>
-              {children}
-            </ClientLayout>
+            {children}
           </ThemeProvider>
         </AuthProvider>
       </body>

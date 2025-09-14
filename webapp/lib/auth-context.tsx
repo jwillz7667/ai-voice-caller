@@ -13,6 +13,7 @@ interface User {
   jobTitle?: string | null;
   avatarUrl?: string | null;
   credits: number;
+  emailVerified?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -48,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         jobTitle: 'Developer',
         avatarUrl: null,
         credits: 1000,
+        emailVerified: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -101,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         jobTitle: 'Developer',
         avatarUrl: null,
         credits: 1000,
+        emailVerified: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -151,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         jobTitle: 'Developer',
         avatarUrl: null,
         credits: 1000,
+        emailVerified: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
