@@ -325,7 +325,7 @@ export const authOptions: NextAuthOptions = {
         return url;
       }
       // Default redirect
-      return baseUrl + "/dashboard";
+      return baseUrl + "/ai-dashboard";
     }
   },
 

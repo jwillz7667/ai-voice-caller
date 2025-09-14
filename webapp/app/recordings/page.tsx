@@ -158,7 +158,7 @@ export default function RecordingsPage() {
               Listen to and download your call recordings
             </p>
           </div>
-          <Link href="/dashboard" className="w-full sm:w-auto">
+          <Link href="/ai-dashboard" className="w-full sm:w-auto">
             <Button variant="outline" className="w-full sm:w-auto">Back to Dashboard</Button>
           </Link>
         </div>

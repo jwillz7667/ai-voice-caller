@@ -12,7 +12,7 @@ export default function LoginPage() {
   const router = useRouter();
   useEffect(() => {
     if (process.env.NEXT_PUBLIC_AUTH_BYPASS === 'true') {
-      router.replace('/dashboard');
+      router.replace('/ai-dashboard');
     }
   }, [router]);
   return (

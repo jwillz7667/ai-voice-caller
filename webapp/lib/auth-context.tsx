@@ -110,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(mockUser);
       setToken('bypass');
       toast.success('Logged in (bypass)');
-      router.push('/dashboard');
+      router.push('/ai-dashboard');
       return;
     }
     try {
@@ -135,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(userData);
       
       toast.success('Logged in successfully');
-      router.push('/dashboard');
+      router.push('/ai-dashboard');
     } catch (error: any) {
       toast.error(error.message || 'Failed to login');
       throw error;
@@ -161,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(mockUser);
       setToken('bypass');
       toast.success('Account created (bypass)');
-      router.push('/dashboard');
+      router.push('/ai-dashboard');
       return;
     }
     try {
@@ -186,7 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(userData);
       
       toast.success('Account created successfully');
-      router.push('/dashboard');
+      router.push('/ai-dashboard');
     } catch (error: any) {
       toast.error(error.message || 'Failed to register');
       throw error;
@@ -196,7 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     if (process.env.NEXT_PUBLIC_AUTH_BYPASS === 'true') {
       // Keep bypass session but navigate to dashboard
-      router.push('/dashboard');
+      router.push('/ai-dashboard');
       return;
     }
     try {
