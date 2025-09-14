@@ -89,17 +89,25 @@ Always maintain a conversational and natural tone appropriate for phone conversa
       instructions: config.instructions,
       temperature: config.temperature,
       max_tokens: config.maxTokens,
-      max_output_tokens: config.maxTokens,
+      max_output_tokens: config.maxOutputTokens || config.maxTokens,
       tools: config.tools || [],
       turn_detection: config.turnDetection,
       input_audio_format: config.inputAudioFormat,
       output_audio_format: config.outputAudioFormat,
       input_audio_transcription: config.inputAudioTranscription,
       modalities: config.modalities || ['text', 'audio'],
-      enable_images: config.enable_images || false,
-      enable_sip: config.enable_sip || true,
-      enable_mcp: config.enable_mcp || false,
-      response_mode: config.response_mode || 'streaming'
+      enable_images: config.enableImages || false,
+      enable_sip: config.enableSip !== false,
+      enable_mcp: config.enableMcp || false,
+      response_mode: config.responseMode || 'streaming',
+      noise_reduction: config.noiseReduction !== false,
+      echo_cancellation: config.echoCancellation !== false,
+      automatic_gain_control: config.automaticGainControl !== false,
+      tool_choice: config.toolChoice || 'auto',
+      parallel_tool_calls: config.parallelToolCalls !== false,
+      max_response_output_tokens: config.maxResponseOutputTokens,
+      conversation_id: config.conversationId,
+      metadata: config.metadata
     };
 
     return NextResponse.json({

@@ -37,18 +37,30 @@ interface IncomingCallConfig {
     prefix_padding_ms?: number;
     silence_duration_ms?: number;
     create_response?: boolean;
+    eagerness?: 'auto' | 'low' | 'medium' | 'high';
+    interrupt_response?: boolean;
   };
   inputAudioFormat: string;
   outputAudioFormat: string;
   inputAudioTranscription?: {
     enabled?: boolean;
     model?: string;
+    language?: string;
+    prompt?: string;
   };
   modalities?: string[];
   enable_images?: boolean;
   enable_sip?: boolean;
   enable_mcp?: boolean;
   response_mode?: 'blocking' | 'streaming';
+  noise_reduction?: boolean;
+  echo_cancellation?: boolean;
+  automatic_gain_control?: boolean;
+  tool_choice?: 'auto' | 'none' | 'required' | string;
+  parallel_tool_calls?: boolean;
+  max_response_output_tokens?: number | 'inf';
+  conversation_id?: string;
+  metadata?: Record<string, any>;
 }
 
 const defaultTools = [
@@ -239,19 +251,31 @@ export default function IncomingConfigPage() {
       threshold: 0.5,
       prefix_padding_ms: 300,
       silence_duration_ms: 500,
-      create_response: true
+      create_response: true,
+      eagerness: 'auto',
+      interrupt_response: true
     },
     inputAudioFormat: 'pcm16',
     outputAudioFormat: 'pcm16',
     inputAudioTranscription: {
       enabled: false,
-      model: 'whisper-1'
+      model: 'whisper-1',
+      language: 'en',
+      prompt: ''
     },
     modalities: ['text', 'audio'],
     enable_images: false,
     enable_sip: true,
     enable_mcp: false,
-    response_mode: 'streaming'
+    response_mode: 'streaming',
+    noise_reduction: true,
+    echo_cancellation: true,
+    automatic_gain_control: true,
+    tool_choice: 'auto',
+    parallel_tool_calls: true,
+    max_response_output_tokens: 4096,
+    conversation_id: '',
+    metadata: {}
   });
 
   // Authentication check
@@ -970,6 +994,50 @@ export default function IncomingConfigPage() {
                     </Select>
                   </div>
 
+                  {config.turnDetection.type === 'semantic_vad' && (
+                    <div>
+                      <Label htmlFor="eagerness">VAD Eagerness</Label>
+                      <Select
+                        value={config.turnDetection.eagerness || 'auto'}
+                        onValueChange={(value: 'auto' | 'low' | 'medium' | 'high') =>
+                          updateConfig({
+                            turnDetection: { ...config.turnDetection, eagerness: value }
+                          })
+                        }
+                      >
+                        <SelectTrigger id="eagerness" className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="auto">
+                            <div>
+                              <div className="font-medium">Auto</div>
+                              <div className="text-xs text-gray-500">Automatically adjust based on context</div>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="low">
+                            <div>
+                              <div className="font-medium">Low</div>
+                              <div className="text-xs text-gray-500">Wait longer before interrupting</div>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="medium">
+                            <div>
+                              <div className="font-medium">Medium</div>
+                              <div className="text-xs text-gray-500">Balanced interruption timing</div>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="high">
+                            <div>
+                              <div className="font-medium">High</div>
+                              <div className="text-xs text-gray-500">Quick to detect end of speech</div>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   {(config.turnDetection.type === 'server_vad' || config.turnDetection.type === 'semantic_vad') && (
                     <>
                       <div>
@@ -1045,6 +1113,25 @@ export default function IncomingConfigPage() {
                           }
                         />
                       </div>
+
+                      {config.turnDetection.type === 'semantic_vad' && (
+                        <div className="flex items-center justify-between p-4 border rounded-lg">
+                          <div>
+                            <Label>Allow Interruption</Label>
+                            <p className="text-sm text-gray-600">
+                              Allow user to interrupt AI while it's speaking
+                            </p>
+                          </div>
+                          <Switch
+                            checked={config.turnDetection.interrupt_response !== false}
+                            onCheckedChange={(checked) =>
+                              updateConfig({
+                                turnDetection: { ...config.turnDetection, interrupt_response: checked }
+                              })
+                            }
+                          />
+                        </div>
+                      )}
                     </>
                   )}
 
@@ -1084,25 +1171,163 @@ export default function IncomingConfigPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <Label>Input Audio Transcription</Label>
-                      <p className="text-sm text-gray-600">
-                        Transcribe incoming audio for logging
-                      </p>
+                  <div className="space-y-4">
+                    <h3 className="text-md font-semibold">Audio Processing</h3>
+
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <Label>Noise Reduction</Label>
+                        <p className="text-sm text-gray-600">
+                          Reduce background noise (may increase latency)
+                        </p>
+                      </div>
+                      <Switch
+                        checked={config.noise_reduction || false}
+                        onCheckedChange={(checked) => updateConfig({ noise_reduction: checked })}
+                      />
                     </div>
-                    <Switch
-                      checked={config.inputAudioTranscription?.enabled || false}
-                      onCheckedChange={(checked) =>
-                        updateConfig({
-                          inputAudioTranscription: {
-                            ...config.inputAudioTranscription,
-                            enabled: checked,
-                            model: 'whisper-1'
-                          }
-                        })
-                      }
-                    />
+
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <Label>Echo Cancellation</Label>
+                        <p className="text-sm text-gray-600">
+                          Cancel echo from speakers
+                        </p>
+                      </div>
+                      <Switch
+                        checked={config.echo_cancellation || false}
+                        onCheckedChange={(checked) => updateConfig({ echo_cancellation: checked })}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <Label>Automatic Gain Control</Label>
+                        <p className="text-sm text-gray-600">
+                          Automatically adjust audio levels
+                        </p>
+                      </div>
+                      <Switch
+                        checked={config.automatic_gain_control || false}
+                        onCheckedChange={(checked) => updateConfig({ automatic_gain_control: checked })}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <Label>Input Audio Transcription</Label>
+                        <p className="text-sm text-gray-600">
+                          Transcribe incoming audio for logging
+                        </p>
+                      </div>
+                      <Switch
+                        checked={config.inputAudioTranscription?.enabled || false}
+                        onCheckedChange={(checked) =>
+                          updateConfig({
+                            inputAudioTranscription: {
+                              ...config.inputAudioTranscription,
+                              enabled: checked,
+                              model: 'whisper-1'
+                            }
+                          })
+                        }
+                      />
+                    </div>
+
+                    {config.inputAudioTranscription?.enabled && (
+                      <div className="ml-4 space-y-3 p-4 border-l-2 border-blue-200">
+                        <div>
+                          <Label htmlFor="transcription-model">Transcription Model</Label>
+                          <Select
+                            value={config.inputAudioTranscription?.model || 'whisper-1'}
+                            onValueChange={(value) =>
+                              updateConfig({
+                                inputAudioTranscription: {
+                                  ...config.inputAudioTranscription,
+                                  model: value
+                                }
+                              })
+                            }
+                          >
+                            <SelectTrigger id="transcription-model" className="mt-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="whisper-1">Whisper v1</SelectItem>
+                              <SelectItem value="gpt-4o-transcribe">GPT-4o Transcribe</SelectItem>
+                              <SelectItem value="gpt-4o-mini-transcribe">GPT-4o Mini Transcribe</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="transcription-language">Language</Label>
+                          <Input
+                            id="transcription-language"
+                            value={config.inputAudioTranscription?.language || 'en'}
+                            onChange={(e) =>
+                              updateConfig({
+                                inputAudioTranscription: {
+                                  ...config.inputAudioTranscription,
+                                  language: e.target.value
+                                }
+                              })
+                            }
+                            placeholder="e.g., en, es, fr, de"
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-4 mt-6">
+                    <h3 className="text-md font-semibold">Tool Configuration</h3>
+
+                    <div>
+                      <Label htmlFor="tool-choice">Tool Choice Behavior</Label>
+                      <Select
+                        value={config.tool_choice || 'auto'}
+                        onValueChange={(value) => updateConfig({ tool_choice: value })}
+                      >
+                        <SelectTrigger id="tool-choice" className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="auto">
+                            <div>
+                              <div className="font-medium">Auto</div>
+                              <div className="text-xs text-gray-500">AI decides when to use tools</div>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="none">
+                            <div>
+                              <div className="font-medium">None</div>
+                              <div className="text-xs text-gray-500">Never use tools</div>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="required">
+                            <div>
+                              <div className="font-medium">Required</div>
+                              <div className="text-xs text-gray-500">Must use a tool for every response</div>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <Label>Parallel Tool Calls</Label>
+                        <p className="text-sm text-gray-600">
+                          Allow multiple tools to be called simultaneously
+                        </p>
+                      </div>
+                      <Switch
+                        checked={config.parallel_tool_calls || false}
+                        onCheckedChange={(checked) => updateConfig({ parallel_tool_calls: checked })}
+                      />
+                    </div>
                   </div>
 
                   <div className="border-t pt-4">

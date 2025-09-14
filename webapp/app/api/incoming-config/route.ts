@@ -110,11 +110,25 @@ export async function POST(req: NextRequest) {
       voice,
       temperature,
       maxTokens,
+      maxOutputTokens,
       tools,
       turnDetection,
       inputAudioFormat,
       outputAudioFormat,
-      inputAudioTranscription
+      inputAudioTranscription,
+      modalities,
+      enable_images,
+      enable_sip,
+      enable_mcp,
+      response_mode,
+      noise_reduction,
+      echo_cancellation,
+      automatic_gain_control,
+      tool_choice,
+      parallel_tool_calls,
+      max_response_output_tokens,
+      conversation_id,
+      metadata
     } = body;
 
     // Deactivate any existing active configurations
@@ -138,16 +152,33 @@ export async function POST(req: NextRequest) {
         voice,
         temperature,
         maxTokens,
+        maxOutputTokens,
         tools: tools || [],
         turnDetection: turnDetection || {
           type: 'server_vad',
           threshold: 0.5,
           prefix_padding_ms: 300,
-          silence_duration_ms: 500
+          silence_duration_ms: 500,
+          create_response: true,
+          eagerness: 'auto',
+          interrupt_response: true
         },
         inputAudioFormat: inputAudioFormat || 'pcm16',
         outputAudioFormat: outputAudioFormat || 'pcm16',
         inputAudioTranscription,
+        modalities: modalities || ['text', 'audio'],
+        enableImages: enable_images || false,
+        enableSip: enable_sip !== false,
+        enableMcp: enable_mcp || false,
+        responseMode: response_mode || 'streaming',
+        noiseReduction: noise_reduction !== false,
+        echoCancellation: echo_cancellation !== false,
+        automaticGainControl: automatic_gain_control !== false,
+        toolChoice: tool_choice || 'auto',
+        parallelToolCalls: parallel_tool_calls !== false,
+        maxResponseOutputTokens: max_response_output_tokens,
+        conversationId: conversation_id,
+        metadata,
         isActive: true
       }
     });
