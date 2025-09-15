@@ -201,7 +201,7 @@ Keep responses concise and natural. You have access to various tools to help the
   useEffect(() => {
     if (!user) return;
 
-    const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:8081';
+    const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || (process.env.NODE_ENV === 'production' ? 'wss://ai-voice-caller-public-vfjab4lzxq-uc.a.run.app' : 'ws://localhost:8081');
     const websocket = new WebSocket(wsUrl);
 
     websocket.onopen = () => {
@@ -316,10 +316,19 @@ Keep responses concise and natural. You have access to various tools to help the
 
   // Start call
   const handleStartCall = async () => {
-    if (!phoneNumber || !ws) {
+    if (!phoneNumber) {
       toast({
         title: 'Error',
         description: 'Please enter a phone number',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!ws || !isConnected) {
+      toast({
+        title: 'Connection Error',
+        description: 'WebSocket not connected. Please refresh the page.',
         variant: 'destructive'
       });
       return;
@@ -432,6 +441,15 @@ Keep responses concise and natural. You have access to various tools to help the
   // Save configuration to database
   const saveConfiguration = async () => {
     try {
+      if (!user) {
+        toast({
+          title: 'Authentication Required',
+          description: 'Please log in to save configuration',
+          variant: 'destructive'
+        });
+        return;
+      }
+
       const configToSave = {
         ...sessionConfig,
         sessionId: callSid || `dashboard-${Date.now()}`,
@@ -448,18 +466,20 @@ Keep responses concise and natural. You have access to various tools to help the
       });
 
       if (response.ok) {
+        const result = await response.json();
         toast({
           title: 'Configuration Saved',
-          description: 'Your settings have been saved to the database'
+          description: 'Your settings have been saved successfully'
         });
       } else {
-        throw new Error('Failed to save configuration');
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to save configuration');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving configuration:', error);
       toast({
         title: 'Save Failed',
-        description: 'Failed to save configuration to database',
+        description: error.message || 'Failed to save configuration',
         variant: 'destructive'
       });
     }
@@ -468,6 +488,11 @@ Keep responses concise and natural. You have access to various tools to help the
   // Load configuration from database
   const loadConfiguration = async () => {
     try {
+      if (!user) {
+        // Silently skip loading if not authenticated
+        return;
+      }
+
       const response = await fetch('/api/session-config');
       if (response.ok) {
         const data = await response.json();
@@ -475,17 +500,21 @@ Keep responses concise and natural. You have access to various tools to help the
           setSessionConfig(data.config);
           toast({
             title: 'Configuration Loaded',
-            description: 'Your saved settings have been loaded from the database'
+            description: 'Your saved settings have been loaded'
           });
         }
+      } else if (response.status === 404) {
+        // No saved configuration - this is normal for new users
+        console.log('No saved configuration found - using defaults');
       } else {
-        throw new Error('No saved configuration found');
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to load configuration');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading configuration:', error);
       toast({
         title: 'Load Failed',
-        description: 'Failed to load configuration from database',
+        description: error.message || 'Failed to load configuration',
         variant: 'destructive'
       });
     }
@@ -587,7 +616,7 @@ Keep responses concise and natural. You have access to various tools to help the
                   <Button
                     onClick={handleStartCall}
                     className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                    disabled={!phoneNumber || !isConnected}
+                    disabled={!phoneNumber || !isConnected || isCallActive}
                   >
                     <PhoneCall className="h-4 w-4 mr-2" />
                     Start Call
