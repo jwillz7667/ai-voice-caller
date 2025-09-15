@@ -1,7 +1,7 @@
 import { WebSocket } from 'ws';
 import { parse } from 'url';
 import { AuthService } from './lib/auth';
-import UserService from './services/userService';
+import { UserService } from './services/userService';
 
 interface AuthenticatedWebSocket extends WebSocket {
   userId?: string;

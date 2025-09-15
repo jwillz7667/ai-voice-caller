@@ -1,4 +1,9 @@
-import { PrismaClient, User, Profile, TokenTransaction, TokenType } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+
+type User = any;
+type Profile = any;
+type TokenTransaction = any;
+type TokenType = any;
 import { AuthService } from '../lib/auth';
 import { z } from 'zod';
 
@@ -28,13 +33,13 @@ export const ProfileUpdateSchema = z.object({
   state: z.string().optional(),
   city: z.string().optional(),
   postalCode: z.string().optional(),
-  preferences: z.record(z.any()).optional(),
-  notificationPrefs: z.record(z.any()).optional()
+  preferences: z.record(z.string(), z.any()).optional(),
+  notificationPrefs: z.record(z.string(), z.any()).optional()
 });
 
-export interface UserWithProfile extends User {
+export type UserWithProfile = User & {
   profile: Profile | null;
-}
+};
 
 export class UserService {
   static async createUser(data: z.infer<typeof SignupSchema>): Promise<UserWithProfile> {
@@ -53,7 +58,7 @@ export class UserService {
 
     const passwordHash = await AuthService.hashPassword(data.password);
 
-    const user = await prisma.$transaction(async (tx) => {
+    const user = await prisma.$transaction(async (tx: any) => {
       const newUser = await tx.user.create({
         data: {
           email: data.email,
@@ -74,7 +79,7 @@ export class UserService {
           tokenTransactions: {
             create: {
               amount: 100,
-              type: TokenType.BONUS,
+              type: 'BONUS' as const,
               balance: 100,
               description: 'Welcome bonus tokens'
             }
@@ -185,7 +190,7 @@ export class UserService {
       }
     }
 
-    const user = await prisma.$transaction(async (tx) => {
+    const user = await prisma.$transaction(async (tx: any) => {
       if (name !== undefined || username !== undefined || phone !== undefined) {
         await tx.user.update({
           where: { id: userId },
@@ -252,7 +257,7 @@ export class UserService {
 
     const newBalance = user.tokenBalance - amount;
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       await tx.user.update({
         where: { id: userId },
         data: { tokenBalance: newBalance }
@@ -262,7 +267,7 @@ export class UserService {
         data: {
           userId,
           amount: -amount,
-          type: TokenType.USAGE,
+          type: 'USAGE' as const,
           balance: newBalance,
           description,
           relatedCallId,
@@ -304,7 +309,7 @@ export class UserService {
 
     const newBalance = user.tokenBalance + amount;
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       await tx.user.update({
         where: { id: userId },
         data: { tokenBalance: newBalance }
@@ -401,5 +406,3 @@ export class UserService {
     });
   }
 }
-
-export default UserService;

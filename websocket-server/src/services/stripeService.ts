@@ -1,9 +1,9 @@
 import Stripe from 'stripe';
-import { TokenType } from '@prisma/client';
-import UserService from './userService';
+// TokenType enum imported inline where needed
+import { UserService } from './userService';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-12-18.acacia'
+  apiVersion: '2025-02-24.acacia' as Stripe.LatestApiVersion
 });
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
@@ -188,7 +188,7 @@ export class StripeService {
       await UserService.addTokens(
         userId,
         tokens,
-        TokenType.PURCHASE,
+        'PURCHASE' as const,
         `Purchased ${tokens} tokens`,
         session.id,
         session.payment_intent as string

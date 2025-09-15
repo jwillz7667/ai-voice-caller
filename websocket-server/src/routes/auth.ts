@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { AuthService, authMiddleware, rateLimiter, AuthRequest } from '../lib/auth';
-import UserService, { SignupSchema, SigninSchema, ProfileUpdateSchema } from '../services/userService';
+import { UserService, SignupSchema, SigninSchema, ProfileUpdateSchema } from '../services/userService';
 import { z } from 'zod';
 
 const router = Router();
@@ -54,7 +54,7 @@ router.post('/signup', rateLimiter(5, 60000), async (req: Request, res: Response
     if (error instanceof z.ZodError) {
       res.status(400).json({
         error: 'Validation error',
-        details: error.errors
+        details: error.issues
       });
       return;
     }
@@ -122,7 +122,7 @@ router.post('/signin', rateLimiter(10, 60000), async (req: Request, res: Respons
     if (error instanceof z.ZodError) {
       res.status(400).json({
         error: 'Validation error',
-        details: error.errors
+        details: error.issues
       });
       return;
     }
@@ -253,7 +253,7 @@ router.patch('/profile', authMiddleware, async (req: AuthRequest, res: Response)
     if (error instanceof z.ZodError) {
       res.status(400).json({
         error: 'Validation error',
-        details: error.errors
+        details: error.issues
       });
       return;
     }

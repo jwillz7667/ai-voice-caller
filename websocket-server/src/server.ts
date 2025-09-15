@@ -13,7 +13,7 @@ import functions from "./functionHandlers";
 import authRouter from "./routes/auth";
 import stripeRouter from "./routes/stripe";
 import { AuthService } from "./lib/auth";
-import UserService from "./services/userService";
+import { UserService } from "./services/userService";
 
 dotenv.config();
 
