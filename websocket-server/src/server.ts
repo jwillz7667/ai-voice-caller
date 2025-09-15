@@ -6,9 +6,14 @@ import http from "http";
 import { readFileSync } from "fs";
 import { join } from "path";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import Handlebars from "handlebars";
 import * as sessionManager from "./sessionManager";
 import functions from "./functionHandlers";
+import authRouter from "./routes/auth";
+import stripeRouter from "./routes/stripe";
+import { AuthService } from "./lib/auth";
+import UserService from "./services/userService";
 
 dotenv.config();
 
@@ -46,6 +51,14 @@ app.use((req: express.Request, res: express.Response, next: express.NextFunction
 // Use JSON body parser with limits
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
+app.use(cookieParser());
+
+// API Routes
+app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/stripe', stripeRouter);
+
+// Raw body for Stripe webhooks
+app.use('/api/v1/stripe/webhook', express.raw({ type: 'application/json' }));
 
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });

@@ -12,30 +12,48 @@
     "start:ngrok": "node scripts/start-with-ngrok.js",
     "sync:ngrok": "node scripts/watch-ngrok-and-sync.js",
     "update:twilio-webhook": "node scripts/update-twilio-webhook.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@prisma/client": "6.14.0",
+    "@types/bcrypt": "6.0.0",
+    "@types/cookie-parser": "1.4.9",
     "@types/cors": "2.8.17",
     "@types/dotenv": "8.2.0",
     "@types/express": "5.0.0",
+    "@types/jsonwebtoken": "9.0.10",
     "@types/node": "22.0.0",
     "@types/ws": "8.5.12",
+    "bcrypt": "6.0.0",
+    "cookie-parser": "1.4.7",
     "cors": "2.8.5",
     "dotenv": "16.4.5",
     "express": "4.21.2",
+    "express-rate-limit": "7.1.5",
     "handlebars": "4.7.8",
     "httpdispatcher": "2.2.0",
+    "ioredis": "5.7.0",
+    "jsonwebtoken": "9.0.2",
+    "prisma": "6.14.0",
+    "stripe": "17.7.0",
     "ts-node": "10.9.2",
     "twilio": "5.9.0",
     "typescript": "5.5.4",
-    "ws": "8.18.0"
+    "ws": "8.18.0",
+    "zod": "4.1.8"
   },
   "devDependencies": {
+    "@vitest/ui": "1.1.0",
     "ngrok": "4.3.3",
-    "nodemon": "3.1.9"
+    "nodemon": "3.1.9",
+    "supertest": "6.3.3",
+    "vitest": "1.1.0"
   },
   "engines": {
     "node": ">=18.0.0"

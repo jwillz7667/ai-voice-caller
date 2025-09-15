@@ -31,19 +31,19 @@ export default function Header() {
             {user && (
               <>
                 <Link 
-                  href="/dashboard" 
+                  href="/ai-dashboard" 
                   className={`text-sm font-medium transition-colors hover:text-primary ${pathname === '/dashboard' ? 'text-foreground' : 'text-muted-foreground'}`}
                 >
                   Dashboard
                 </Link>
                 <Link 
-                  href="/dashboard/credits" 
+                  href="/ai-dashboard" 
                   className={`text-sm font-medium transition-colors hover:text-primary ${pathname === '/dashboard/credits' ? 'text-foreground' : 'text-muted-foreground'}`}
                 >
                   Credits
                 </Link>
                 <Link 
-                  href="/app" 
+                  href="/ai-dashboard" 
                   className={`text-sm font-medium transition-colors hover:text-primary ${pathname === '/app' ? 'text-foreground' : 'text-muted-foreground'}`}
                 >
                   Call Dashboard
@@ -56,13 +56,13 @@ export default function Header() {
             {!user ? (
               <div className="hidden md:flex gap-2">
                 <Link 
-                  href="/login" 
+                  href="/auth/signin" 
                   className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
                 >
                   Sign In
                 </Link>
                 <Link 
-                  href="/register" 
+                  href="/auth/signup" 
                   className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2"
                 >
                   Sign Up
@@ -91,28 +91,28 @@ export default function Header() {
                         <span className="font-medium text-foreground">{user.email}</span>
                       </div>
                       <Link
-                        href="/dashboard"
+                        href="/ai-dashboard"
                         className="block px-4 py-2 text-sm text-foreground hover:bg-accent"
                         onClick={() => setMenuOpen(false)}
                       >
                         Dashboard
                       </Link>
                       <Link
-                        href="/dashboard/profile"
+                        href="/profile"
                         className="block px-4 py-2 text-sm text-foreground hover:bg-accent"
                         onClick={() => setMenuOpen(false)}
                       >
                         Profile
                       </Link>
                       <Link
-                        href="/dashboard/credits"
+                        href="/ai-dashboard"
                         className="block px-4 py-2 text-sm text-foreground hover:bg-accent"
                         onClick={() => setMenuOpen(false)}
                       >
                         Credits
                       </Link>
                       <Link
-                        href="/app"
+                        href="/ai-dashboard"
                         className="block px-4 py-2 text-sm text-foreground hover:bg-accent"
                         onClick={() => setMenuOpen(false)}
                       >
@@ -168,28 +168,28 @@ export default function Header() {
             {user ? (
               <>
                 <Link
-                  href="/dashboard"
+                  href="/ai-dashboard"
                   className="text-foreground hover:text-primary"
                   onClick={() => setMenuOpen(false)}
                 >
                   Dashboard
                 </Link>
                 <Link
-                  href="/dashboard/profile"
+                  href="/profile"
                   className="text-foreground hover:text-primary"
                   onClick={() => setMenuOpen(false)}
                 >
                   Profile
                 </Link>
                 <Link
-                  href="/dashboard/credits"
+                  href="/ai-dashboard"
                   className="text-foreground hover:text-primary"
                   onClick={() => setMenuOpen(false)}
                 >
                   Credits
                 </Link>
                 <Link
-                  href="/app"
+                  href="/ai-dashboard"
                   className="text-foreground hover:text-primary"
                   onClick={() => setMenuOpen(false)}
                 >
@@ -208,14 +208,14 @@ export default function Header() {
             ) : (
               <>
                 <Link
-                  href="/login"
+                  href="/auth/signin"
                   className="text-foreground hover:text-primary"
                   onClick={() => setMenuOpen(false)}
                 >
                   Sign In
                 </Link>
                 <Link
-                  href="/register"
+                  href="/auth/signup"
                   className="text-foreground hover:text-primary"
                   onClick={() => setMenuOpen(false)}
                 >

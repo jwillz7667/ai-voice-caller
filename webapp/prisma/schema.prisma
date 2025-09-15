@@ -13,6 +13,7 @@ model User {
   emailVerified      Boolean              @default(false) @map("email_verified")
   emailVerifiedAt    DateTime?            @map("email_verified_at")
   password           String?
+  passwordHash       String?              @map("password_hash") // For argon2/bcrypt
   name               String?
   username           String?              @unique
   phone              String?
@@ -35,6 +36,7 @@ model User {
   lockedUntil        DateTime?            @map("locked_until")
   credits            Int                  @default(100)
   creditBalance      Float                @default(0) @map("credit_balance")
+  tokenBalance       Int                  @default(0) @map("token_balance") // Virtual tokens for calls
   stripeCustomerId   String?              @unique @map("stripe_customer_id")
   metadata           Json?
   tags               String[]             @default([])
@@ -52,10 +54,12 @@ model User {
   notifications      Notification[]
   organizations      OrganizationMember[]
   passwordResets     PasswordReset[]
+  profile            Profile?
   savedConfigs       SavedConfiguration[]
   incomingCallConfigs IncomingCallConfig[]
   realtimeSessions   RealtimeSession[]
   sessions           Session[]
+  tokenTransactions  TokenTransaction[]
   webhooks           Webhook[]
 
   @@index([email])
@@ -683,4 +687,60 @@ enum RecordingStatus {
   COMPLETED
   FAILED
   DELETED
+}
+
+model Profile {
+  id                 String    @id @default(cuid())
+  userId             String    @unique @map("user_id")
+  fullName           String?   @map("full_name")
+  displayName        String?   @map("display_name")
+  phoneNumber        String?   @map("phone_number")
+  alternateEmail     String?   @map("alternate_email")
+  dateOfBirth        DateTime? @map("date_of_birth")
+  country            String?
+  state              String?
+  city               String?
+  postalCode         String?   @map("postal_code")
+  address            String?
+  preferences        Json?     // User preferences for voice, settings, etc.
+  socialLinks        Json?     @map("social_links")
+  notificationPrefs  Json?     @map("notification_prefs")
+  privacySettings    Json?     @map("privacy_settings")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("profiles")
+}
+
+model TokenTransaction {
+  id                String          @id @default(cuid())
+  userId            String          @map("user_id")
+  amount            Int             // Number of tokens
+  type              TokenType       // PURCHASE, USAGE, REFUND, BONUS
+  balance           Int             // Balance after transaction
+  stripeSessionId   String?         @map("stripe_session_id")
+  stripePaymentId   String?         @map("stripe_payment_id")
+  description       String?
+  metadata          Json?
+  status            String          @default("completed")
+  relatedCallId     String?         @map("related_call_id")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([stripeSessionId])
+  @@index([createdAt])
+  @@map("token_transactions")
+}
+
+enum TokenType {
+  PURCHASE
+  USAGE
+  REFUND
+  BONUS
+  TRANSFER
+  ADJUSTMENT
 }

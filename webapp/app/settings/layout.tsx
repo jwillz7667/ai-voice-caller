@@ -10,7 +10,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/signin");
+    if (!loading && !user) router.replace("/auth/signin");
   }, [loading, user, router]);
 
   if (loading) return <div className="p-6">Loading…</div>;

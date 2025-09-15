@@ -16,7 +16,7 @@ export default function AIDashboardLayout({
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push("/login");
+      router.push("/auth/signin");
     }
   }, [user, loading, router]);
 

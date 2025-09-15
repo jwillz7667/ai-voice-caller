@@ -6,9 +6,7 @@ import { ChevronRight, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const routeLabels: Record<string, string> = {
-  "/dashboard": "Dashboard",
   "/ai-dashboard": "AI Dashboard",
-  "/app": "Call Interface",
   "/recordings": "Recordings",
   "/logs": "Logs",
   "/settings": "Settings",
@@ -30,7 +28,7 @@ export default function BreadcrumbNav() {
   return (
     <nav aria-label="Breadcrumb" className="flex items-center space-x-1 text-sm">
       <Link
-        href="/dashboard"
+        href="/ai-dashboard"
         className="flex items-center text-gray-500 hover:text-gray-700 transition-colors"
       >
         <Home className="h-4 w-4" />

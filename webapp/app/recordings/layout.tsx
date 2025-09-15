@@ -10,7 +10,7 @@ export default function RecordingsLayout({ children }: { children: React.ReactNo
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/signin");
+    if (!loading && !user) router.replace("/auth/signin");
   }, [loading, user, router]);
 
   if (loading) return <div className="p-6">Loading…</div>;

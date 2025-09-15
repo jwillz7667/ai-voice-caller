@@ -322,7 +322,7 @@ export default function CustomSignupForm() {
         
         <p className="text-center text-sm text-gray-500 mt-4">
           Already have an account?{' '}
-          <Link href="/login" className="text-primary hover:underline font-medium">
+          <Link href="/auth/signin" className="text-primary hover:underline font-medium">
             Sign in
           </Link>
         </p>
