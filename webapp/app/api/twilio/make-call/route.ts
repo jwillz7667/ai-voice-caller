@@ -80,25 +80,47 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create call log entry with configuration
+    // Create call log and realtime session entries with configuration
     if (userId) {
       try {
+        // Create call log entry
         await prisma.callLog.create({
           data: {
             userId,
             callSid: call.sid,
             phoneNumber,
-            direction: "outbound",
-            status: call.status || "initiated",
+            direction: "OUTBOUND",
+            status: "INITIATED",
             startedAt: new Date(),
             duration: 0, // Will be updated when call completes
             configuration: config || null, // Store the configuration used
-            sessionId: call.sid // Use callSid as sessionId initially
+            sessionId: call.sid, // Use callSid as sessionId initially
+            model: config?.model || 'gpt-realtime',
+            voice: config?.voice || 'marin',
+            recordingEnabled: true,
           }
         });
-        console.log("Call log created for SID:", call.sid);
+
+        // Create realtime session entry if configuration provided
+        if (config) {
+          await prisma.realtimeSession.create({
+            data: {
+              userId,
+              sessionId: call.sid,
+              callSid: call.sid,
+              configuration: config,
+              model: config.model || 'gpt-realtime',
+              voice: config.voice || 'marin',
+              vadMode: config.turn_detection?.type || 'semantic_vad',
+              status: 'active',
+              startedAt: new Date(),
+            }
+          });
+        }
+
+        console.log("Call log and session created for SID:", call.sid);
       } catch (error) {
-        console.error("Failed to create call log:", error);
+        console.error("Failed to create call log/session:", error);
         // Don't fail the call, just log the error
       }
     } else {

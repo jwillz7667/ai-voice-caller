@@ -497,18 +497,21 @@ function tryConnectModel() {
         console.log("Applying configuration to OpenAI session:", JSON.stringify(savedConfig, null, 2));
         // Build clean session config with only valid OpenAI fields
         const sessionConfig = {
-            modalities: ["text", "audio"],
-            // Default to server VAD if not provided
+            modalities: savedConfig.modalities || ["text", "audio"],
+            // Enhanced turn detection with semantic_vad support
             turn_detection: savedConfig.turn_detection || {
-                type: "server_vad",
+                type: "semantic_vad", // Default to new semantic VAD
                 threshold: 0.5,
-                prefix_padding_ms: 400,
-                silence_duration_ms: 800,
+                prefix_padding_ms: 300,
+                silence_duration_ms: 500,
+                create_response: true,
+                interrupt_response: true,
+                eagerness: "auto"
             },
-            // Twilio expects G.711 µ-law at 8kHz for both input and output
-            input_audio_format: "g711_ulaw",
-            output_audio_format: "g711_ulaw",
-            voice: ((_a = savedConfig === null || savedConfig === void 0 ? void 0 : savedConfig.audio) === null || _a === void 0 ? void 0 : _a.voice) || savedConfig.voice || "ash",
+            // Support dynamic audio formats from frontend
+            input_audio_format: savedConfig.input_audio_format || "g711_ulaw",
+            output_audio_format: savedConfig.output_audio_format || "g711_ulaw",
+            voice: ((_a = savedConfig === null || savedConfig === void 0 ? void 0 : savedConfig.audio) === null || _a === void 0 ? void 0 : _a.voice) || savedConfig.voice || "marin", // Default to new Marin voice
         };
         // Ensure semantic_vad has proper configuration
         if (((_b = sessionConfig.turn_detection) === null || _b === void 0 ? void 0 : _b.type) === 'semantic_vad') {
@@ -544,9 +547,23 @@ function tryConnectModel() {
         else if (savedConfig.max_output_tokens !== undefined) {
             sessionConfig.max_output_tokens = savedConfig.max_output_tokens;
         }
-        // Apply audio transcription settings if provided
+        // Apply enhanced audio transcription settings
         if (savedConfig.input_audio_transcription) {
-            sessionConfig.input_audio_transcription = savedConfig.input_audio_transcription;
+            sessionConfig.input_audio_transcription = Object.assign(Object.assign({}, savedConfig.input_audio_transcription), { model: savedConfig.input_audio_transcription.model || 'gpt-4o-transcribe' });
+        }
+        // Support legacy transcription config
+        if (savedConfig.transcription && !sessionConfig.input_audio_transcription) {
+            sessionConfig.input_audio_transcription = {
+                model: savedConfig.transcription.model || 'gpt-4o-transcribe'
+            };
+        }
+        // Apply noise reduction settings
+        if (savedConfig.input_audio_noise_reduction) {
+            sessionConfig.input_audio_noise_reduction = savedConfig.input_audio_noise_reduction;
+        }
+        // Apply tool choice configuration
+        if (savedConfig.tool_choice) {
+            sessionConfig.tool_choice = savedConfig.tool_choice;
         }
         // Log the final config being sent
         console.log("Sending session.update with config:", JSON.stringify(sessionConfig, null, 2));
@@ -917,16 +934,20 @@ function setSessionConfig(config) {
     if (isOpen(session.modelConn)) {
         console.log("Updating active OpenAI session with new configuration");
         const sessionUpdate = {
-            modalities: ["text", "audio"],
+            modalities: config.modalities || ["text", "audio"],
             turn_detection: config.turn_detection || {
-                type: "server_vad",
+                type: "semantic_vad", // Default to semantic VAD
                 threshold: 0.5,
                 prefix_padding_ms: 300,
-                silence_duration_ms: 500
+                silence_duration_ms: 500,
+                create_response: true,
+                interrupt_response: true,
+                eagerness: "auto"
             },
-            input_audio_format: "g711_ulaw",
-            output_audio_format: "g711_ulaw",
-            voice: (((_a = config === null || config === void 0 ? void 0 : config.audio) === null || _a === void 0 ? void 0 : _a.voice) || config.voice || "ash")
+            // Support dynamic audio formats
+            input_audio_format: config.input_audio_format || "g711_ulaw",
+            output_audio_format: config.output_audio_format || "g711_ulaw",
+            voice: (((_a = config === null || config === void 0 ? void 0 : config.audio) === null || _a === void 0 ? void 0 : _a.voice) || config.voice || "marin")
         };
         // Only add optional fields if defined
         if (config.instructions) {
@@ -942,8 +963,23 @@ function setSessionConfig(config) {
         else if (config.max_output_tokens !== undefined) {
             sessionUpdate.max_output_tokens = config.max_output_tokens;
         }
+        // Enhanced transcription support
         if (config.input_audio_transcription) {
-            sessionUpdate.input_audio_transcription = config.input_audio_transcription;
+            sessionUpdate.input_audio_transcription = Object.assign(Object.assign({}, config.input_audio_transcription), { model: config.input_audio_transcription.model || 'gpt-4o-transcribe' });
+        }
+        // Support legacy transcription config
+        if (config.transcription && !sessionUpdate.input_audio_transcription) {
+            sessionUpdate.input_audio_transcription = {
+                model: config.transcription.model || 'gpt-4o-transcribe'
+            };
+        }
+        // Apply noise reduction settings
+        if (config.input_audio_noise_reduction) {
+            sessionUpdate.input_audio_noise_reduction = config.input_audio_noise_reduction;
+        }
+        // Apply tool choice configuration
+        if (config.tool_choice) {
+            sessionUpdate.tool_choice = config.tool_choice;
         }
         // Only add tools if they exist and are not empty
         if (config.tools && Array.isArray(config.tools) && config.tools.length > 0) {

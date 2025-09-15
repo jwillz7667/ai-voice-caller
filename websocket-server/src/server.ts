@@ -71,15 +71,15 @@ app.get("/voices", (req: express.Request, res: express.Response) => {
     if (!voices && envCsv) {
       voices = envCsv.split(",").map((v) => v.trim()).filter(Boolean);
     }
-    // Default curated set; dedupe and sort alphabetically
+    // Enhanced voice set with Sept 2025 updates; dedupe and sort alphabetically
     const defaultVoices = [
       "alloy",
       "ash",
       "ballad",
-      "cedar",
+      "cedar", // New Sept 2025 voice
       "coral",
       "echo",
-      "marin",
+      "marin", // New Sept 2025 voice (featured)
       "sage",
       "shimmer",
       "verse",

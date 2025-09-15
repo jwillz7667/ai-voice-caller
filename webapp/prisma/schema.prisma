@@ -54,6 +54,7 @@ model User {
   passwordResets     PasswordReset[]
   savedConfigs       SavedConfiguration[]
   incomingCallConfigs IncomingCallConfig[]
+  realtimeSessions   RealtimeSession[]
   sessions           Session[]
   webhooks           Webhook[]
 
@@ -438,42 +439,131 @@ model SavedConfiguration {
 }
 
 model IncomingCallConfig {
-  id               String    @id @default(cuid())
-  userId           String    @map("user_id")
-  name             String    @default("Default Incoming Call Configuration")
-  isActive         Boolean   @default(true) @map("is_active")
-  model            String    @default("gpt-realtime")
-  instructions     String    @db.Text
-  voice            String    @default("cedar")
-  temperature      Float     @default(0.8)
-  maxTokens        Int       @default(4096) @map("max_tokens")
-  maxOutputTokens  Int?      @map("max_output_tokens")
-  tools            Json      @default("[]")
-  turnDetection    Json      @map("turn_detection") @default("{\"type\":\"server_vad\",\"threshold\":0.5,\"prefix_padding_ms\":300,\"silence_duration_ms\":500,\"create_response\":true,\"eagerness\":\"auto\",\"interrupt_response\":true}")
-  inputAudioFormat String    @default("pcm16") @map("input_audio_format")
-  outputAudioFormat String   @default("pcm16") @map("output_audio_format")
-  inputAudioTranscription Json? @map("input_audio_transcription")
-  modalities       Json?     @default("[\"text\",\"audio\"]")
-  enableImages     Boolean   @default(false) @map("enable_images")
-  enableSip        Boolean   @default(true) @map("enable_sip")
-  enableMcp        Boolean   @default(false) @map("enable_mcp")
-  responseMode     String    @default("streaming") @map("response_mode")
-  noiseReduction   Boolean   @default(true) @map("noise_reduction")
-  echoCancellation Boolean   @default(true) @map("echo_cancellation")
-  automaticGainControl Boolean @default(true) @map("automatic_gain_control")
-  toolChoice       String    @default("auto") @map("tool_choice")
-  parallelToolCalls Boolean  @default(true) @map("parallel_tool_calls")
-  maxResponseOutputTokens Int? @map("max_response_output_tokens")
-  conversationId   String?   @map("conversation_id")
-  metadata         Json?
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
-  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                      String    @id @default(cuid())
+  userId                  String    @map("user_id")
+  name                    String    @default("Default Incoming Call Configuration")
+  isActive                Boolean   @default(true) @map("is_active")
+
+  // Enhanced model configuration (Sept 2025)
+  model                   String    @default("gpt-realtime")
+  configType              String    @default("realtime") @map("config_type") // 'realtime' | 'transcription'
+
+  // Core AI configuration
+  instructions            String    @db.Text
+  voice                   String    @default("marin") // Updated default to new voice
+  temperature             Float     @default(0.8)
+  maxTokens               Int       @default(4096) @map("max_tokens")
+  maxOutputTokens         Int?      @map("max_output_tokens")
+
+  // Enhanced tool configuration
+  tools                   Json      @default("[]")
+  toolChoice              String    @default("auto") @map("tool_choice") // 'auto' | 'none' | 'required'
+  parallelToolCalls       Boolean   @default(true) @map("parallel_tool_calls")
+
+  // Enhanced turn detection with semantic_vad support (Sept 2025)
+  turnDetection           Json      @map("turn_detection") @default("{\"type\":\"semantic_vad\",\"threshold\":0.5,\"prefix_padding_ms\":300,\"silence_duration_ms\":500,\"create_response\":true,\"interrupt_response\":true,\"eagerness\":\"auto\"}")
+
+  // Enhanced audio configuration
+  inputAudioFormat        String    @default("pcm16") @map("input_audio_format") // 'pcm16' | 'g711_ulaw' | 'g711_alaw'
+  outputAudioFormat       String    @default("pcm16") @map("output_audio_format") // 'pcm16' | 'g711_ulaw' | 'g711_alaw'
+  audioConfig             Json?     @map("audio_config") // Enhanced audio settings including sample rates
+
+  // Enhanced transcription with new models (Sept 2025)
+  inputAudioTranscription Json?     @map("input_audio_transcription") // Model, language, prompt settings
+  transcriptionModel      String?   @default("gpt-4o-transcribe") @map("transcription_model") // 'whisper-1' | 'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe'
+  transcriptionLanguage   String?   @default("en") @map("transcription_language")
+  transcriptionPrompt     String?   @map("transcription_prompt")
+
+  // Enhanced noise reduction (Sept 2025)
+  inputAudioNoiseReduction Json?    @map("input_audio_noise_reduction") // 'near_field' | 'far_field' | null
+  noiseReduction          Boolean   @default(true) @map("noise_reduction") // Legacy support
+  echoCancellation        Boolean   @default(true) @map("echo_cancellation")
+  automaticGainControl    Boolean   @default(true) @map("automatic_gain_control")
+
+  // Output modalities
+  modalities              Json?     @default("[\"text\",\"audio\"]")
+
+  // Advanced features
+  enableImages            Boolean   @default(false) @map("enable_images")
+  enableSip               Boolean   @default(true) @map("enable_sip")
+  enableMcp               Boolean   @default(false) @map("enable_mcp")
+  responseMode            String    @default("streaming") @map("response_mode")
+  maxResponseOutputTokens Int?      @map("max_response_output_tokens")
+
+  // Conversation and prompt management
+  conversationId          String?   @map("conversation_id")
+  promptConfig            Json?     @map("prompt_config") // Prompt ID, version, variables
+
+  // Recording and local settings
+  recordCall              Boolean   @default(true) @map("record_call")
+  outputAudioGain         Float?    @default(1.0) @map("output_audio_gain")
+
+  // Metadata and tracking
+  metadata                Json?
+  version                 Int       @default(1) // Configuration version for migrations
+  usageCount              Int       @default(0) @map("usage_count")
+  lastUsedAt              DateTime? @map("last_used_at")
+
+  // Timestamps
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, isActive])
   @@index([userId])
   @@index([isActive])
+  @@index([model])
+  @@index([voice])
+  @@index([lastUsedAt])
   @@map("incoming_call_configs")
+}
+
+model RealtimeSession {
+  id               String   @id @default(cuid())
+  userId           String   @map("user_id")
+  sessionId        String   @unique @map("session_id") // WebSocket session identifier
+  callSid          String?  @unique @map("call_sid") // Twilio call SID
+
+  // Session configuration at time of creation
+  configuration    Json     // Complete session config used
+  model            String?
+  voice            String?
+  vadMode          String?  @map("vad_mode") // 'server_vad' | 'semantic_vad' | 'none'
+
+  // Session state
+  status           String   @default("active") // 'active' | 'completed' | 'failed' | 'terminated'
+  isActive         Boolean  @default(true) @map("is_active")
+
+  // Performance metrics
+  latencyMs        Int?     @map("latency_ms")
+  audioQuality     String?  @map("audio_quality")
+  connectionErrors Int      @default(0) @map("connection_errors")
+  reconnectCount   Int      @default(0) @map("reconnect_count")
+
+  // Usage tracking
+  totalDuration    Int      @default(0) @map("total_duration") // seconds
+  creditsUsed      Int      @default(0) @map("credits_used")
+  tokensUsed       Int      @default(0) @map("tokens_used")
+
+  // Timestamps
+  startedAt        DateTime @map("started_at")
+  endedAt          DateTime? @map("ended_at")
+  lastActivity     DateTime @default(now()) @map("last_activity")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([callSid])
+  @@index([status])
+  @@index([isActive])
+  @@index([startedAt])
+  @@map("realtime_sessions")
 }
 
 model Analytics {

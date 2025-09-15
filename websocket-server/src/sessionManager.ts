@@ -101,11 +101,16 @@ function amplifyMuLawAudio(base64Audio: string, gainFactor: number): string {
   }
 }
 
-// OpenAI Realtime Session configuration aligned to official reference
+// Enhanced OpenAI Realtime Session configuration for Sept 2025 features
 interface OpenAISessionConfig {
+  // Core model configuration
+  model?: string;
+  type?: 'realtime' | 'transcription';
+
   // Modalities per latest API spec
   modalities?: Array<'audio' | 'text' | string>;
-  // VAD / turn detection
+
+  // Enhanced VAD / turn detection with semantic_vad support
   turn_detection?: {
     type: 'none' | 'server_vad' | 'semantic_vad';
     threshold?: number;
@@ -115,27 +120,71 @@ interface OpenAISessionConfig {
     interrupt_response?: boolean;
     eagerness?: 'auto' | 'low' | 'high';
   };
+
   // Audio formats per latest API spec
-  input_audio_format?: 'g711_ulaw' | 'pcm16' | string;
-  output_audio_format?: 'g711_ulaw' | 'pcm16' | string;
-  // Voice selection
-  voice?: 'alloy' | 'ash' | 'ballad' | 'cedar' | 'coral' | 'echo' | 'sage' | 'shimmer' | 'verse' | string;
-  // Optional transcription config
+  input_audio_format?: 'g711_ulaw' | 'g711_alaw' | 'pcm16' | string;
+  output_audio_format?: 'g711_ulaw' | 'g711_alaw' | 'pcm16' | string;
+
+  // Enhanced voice selection with new Sept 2025 voices
+  voice?: 'alloy' | 'ash' | 'ballad' | 'cedar' | 'coral' | 'echo' | 'sage' | 'shimmer' | 'verse' | 'marin' | string;
+
+  // Enhanced audio configuration
+  audio?: {
+    input: {
+      format: {
+        type: string;
+        rate: number;
+      };
+      turn_detection: {
+        type: string;
+      };
+    };
+    output: {
+      format: {
+        type: string;
+      };
+      voice: string;
+    };
+  };
+
+  // Noise reduction configuration
+  input_audio_noise_reduction?: {
+    type: 'near_field' | 'far_field' | null;
+  };
+
+  // Enhanced transcription config with new models
+  input_audio_transcription?: {
+    model: 'whisper-1' | 'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe';
+    prompt?: string;
+    language?: string;
+  };
+
+  // Legacy transcription support
   transcription?: {
     model: 'whisper-1' | 'gpt-4o-transcribe' | 'gpt-4o-mini-transcribe';
   } | null;
+
   // Core behavior
   instructions?: string;
+
   // Reference a saved Prompt (pmpt_*) and optional version
   prompt?: {
-    id: string;
+    id?: string;
     version?: string;
+    variables?: Record<string, string>;
   } | null;
+
+  // Tools and function calling
   tools?: any[];
+  tool_choice?: 'auto' | 'none' | 'required';
+
+  // Generation parameters
   temperature?: number;
   max_output_tokens?: number | 'inf';
+
   // Not sent to OpenAI – used locally
   recordCall?: boolean;
+
   // Optional local output gain applied before sending audio to Twilio
   output_audio_gain?: number;
 }
@@ -568,18 +617,21 @@ function tryConnectModel() {
 
     // Build clean session config with only valid OpenAI fields
     const sessionConfig: any = {
-      modalities: ["text", "audio"],
-      // Default to server VAD if not provided
+      modalities: savedConfig.modalities || ["text", "audio"],
+      // Enhanced turn detection with semantic_vad support
       turn_detection: savedConfig.turn_detection || {
-        type: "server_vad",
+        type: "semantic_vad", // Default to new semantic VAD
         threshold: 0.5,
-        prefix_padding_ms: 400,
-        silence_duration_ms: 800,
+        prefix_padding_ms: 300,
+        silence_duration_ms: 500,
+        create_response: true,
+        interrupt_response: true,
+        eagerness: "auto"
       },
-      // Twilio expects G.711 µ-law at 8kHz for both input and output
-      input_audio_format: "g711_ulaw",
-      output_audio_format: "g711_ulaw",
-      voice: (savedConfig as any)?.audio?.voice || (savedConfig as any).voice || "ash",
+      // Support dynamic audio formats from frontend
+      input_audio_format: savedConfig.input_audio_format || "g711_ulaw",
+      output_audio_format: savedConfig.output_audio_format || "g711_ulaw",
+      voice: (savedConfig as any)?.audio?.voice || savedConfig.voice || "marin", // Default to new Marin voice
     };
     
     // Ensure semantic_vad has proper configuration
@@ -622,9 +674,29 @@ function tryConnectModel() {
       sessionConfig.max_output_tokens = savedConfig.max_output_tokens;
     }
 
-    // Apply audio transcription settings if provided
-    if ((savedConfig as any).input_audio_transcription) {
-      sessionConfig.input_audio_transcription = (savedConfig as any).input_audio_transcription;
+    // Apply enhanced audio transcription settings
+    if (savedConfig.input_audio_transcription) {
+      sessionConfig.input_audio_transcription = {
+        ...savedConfig.input_audio_transcription,
+        model: savedConfig.input_audio_transcription.model || 'gpt-4o-transcribe'
+      };
+    }
+
+    // Support legacy transcription config
+    if (savedConfig.transcription && !sessionConfig.input_audio_transcription) {
+      sessionConfig.input_audio_transcription = {
+        model: savedConfig.transcription.model || 'gpt-4o-transcribe'
+      };
+    }
+
+    // Apply noise reduction settings
+    if (savedConfig.input_audio_noise_reduction) {
+      sessionConfig.input_audio_noise_reduction = savedConfig.input_audio_noise_reduction;
+    }
+
+    // Apply tool choice configuration
+    if (savedConfig.tool_choice) {
+      sessionConfig.tool_choice = savedConfig.tool_choice;
     }
     
     // Log the final config being sent
@@ -1031,16 +1103,20 @@ export function setSessionConfig(config: any) {
     console.log("Updating active OpenAI session with new configuration");
     
     const sessionUpdate: any = {
-      modalities: ["text", "audio"],
-      turn_detection: config.turn_detection || { 
-        type: "server_vad",
+      modalities: config.modalities || ["text", "audio"],
+      turn_detection: config.turn_detection || {
+        type: "semantic_vad", // Default to semantic VAD
         threshold: 0.5,
         prefix_padding_ms: 300,
-        silence_duration_ms: 500
+        silence_duration_ms: 500,
+        create_response: true,
+        interrupt_response: true,
+        eagerness: "auto"
       },
-      input_audio_format: "g711_ulaw",
-      output_audio_format: "g711_ulaw",
-      voice: (config?.audio?.voice || config.voice || "ash") as any
+      // Support dynamic audio formats
+      input_audio_format: config.input_audio_format || "g711_ulaw",
+      output_audio_format: config.output_audio_format || "g711_ulaw",
+      voice: (config?.audio?.voice || config.voice || "marin") as any
     };
     
     // Only add optional fields if defined
@@ -1059,8 +1135,29 @@ export function setSessionConfig(config: any) {
       sessionUpdate.max_output_tokens = config.max_output_tokens;
     }
     
+    // Enhanced transcription support
     if (config.input_audio_transcription) {
-      sessionUpdate.input_audio_transcription = config.input_audio_transcription;
+      sessionUpdate.input_audio_transcription = {
+        ...config.input_audio_transcription,
+        model: config.input_audio_transcription.model || 'gpt-4o-transcribe'
+      };
+    }
+
+    // Support legacy transcription config
+    if (config.transcription && !sessionUpdate.input_audio_transcription) {
+      sessionUpdate.input_audio_transcription = {
+        model: config.transcription.model || 'gpt-4o-transcribe'
+      };
+    }
+
+    // Apply noise reduction settings
+    if (config.input_audio_noise_reduction) {
+      sessionUpdate.input_audio_noise_reduction = config.input_audio_noise_reduction;
+    }
+
+    // Apply tool choice configuration
+    if (config.tool_choice) {
+      sessionUpdate.tool_choice = config.tool_choice;
     }
 
     // Only add tools if they exist and are not empty
