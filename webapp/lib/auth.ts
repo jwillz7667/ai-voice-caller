@@ -30,16 +30,17 @@ export function verifyToken(token: string): JWTPayload {
   return jwt.verify(token, JWT_SECRET) as JWTPayload;
 }
 
-export async function createSession(userId: string, email: string): Promise<string> {
-  const token = generateToken({ userId, email });
+export async function createSession(user_id: string, email: string): Promise<string> {
+  const token = generateToken({ user_id, email });
   
   // Store session in database
-  await prisma.sessions.create({
-    data: {
-      userId,
+  await prisma.sessions.create({ data: {
+        id: crypto.randomUUID(), user_id,
       session_token: token,
-      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-    },
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
   });
   
   return token;
@@ -53,7 +54,7 @@ export async function validateSession(token: string): Promise<User | null> {
     // Check if session exists in database
     const session = await prisma.sessions.findUnique({
       where: { session_token: token },
-      include: { user: true },
+      include: { users: true },
     });
 
     if (!session || session.expires < new Date()) {

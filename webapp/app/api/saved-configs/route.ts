@@ -29,9 +29,7 @@ export async function GET(_request: NextRequest) {
 
     // Fetch saved configurations for the user
     const savedConfigs = await prisma.saved_configurations.findMany({
-      where: {
-        userId
-      },
+      where: { user_id },
       orderBy: [
         { last_used_at: "desc" },
         { created_at: "desc" }
@@ -78,12 +76,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Create saved configuration
-    const savedConfig = await prisma.saved_configurations.create({
-      data: {
-        userId,
+    const savedConfig = await prisma.saved_configurations.create({ data: {
+        id: crypto.randomUUID(), user_id,
         name,
         description: description || null,
-        configuration
+        configuration,
+        created_at: new Date(),
+        updated_at: new Date()
       }
     });
 
@@ -130,9 +129,7 @@ export async function DELETE(request: NextRequest) {
     // Delete the configuration (only if it belongs to the user)
     await prisma.saved_configurations.deleteMany({
       where: {
-        id: configId,
-        userId
-      }
+        id: configId, user_id }
     });
 
     return NextResponse.json({ success: true });

@@ -29,12 +29,14 @@ export async function GET(req: NextRequest) {
 
     if (!user) {
       // Create default user if none exists
-      user = await prisma.users.create({
-        data: {
+      user = await prisma.users.create({ data: {
+        id: crypto.randomUUID(),
           email: 'user@example.com',
           name: 'Default User',
-          credits: 1000
-        }
+          credits: 1000,
+        created_at: new Date(),
+        updated_at: new Date()
+      }
       });
     }
 
@@ -48,8 +50,8 @@ export async function GET(req: NextRequest) {
 
     // If no config exists, create a default one
     if (!config) {
-      config = await prisma.incoming_call_configs.create({
-        data: {
+      config = await prisma.incoming_call_configs.create({ data: {
+        id: crypto.randomUUID(),
           user_id: user.id,
           name: 'Default Incoming Call Configuration',
           instructions: `You are a helpful AI assistant answering phone calls. Be friendly, professional, and concise.
@@ -59,18 +61,20 @@ Always maintain a conversational and natural tone appropriate for phone conversa
           model: 'gpt-realtime',
           voice: 'cedar',
           temperature: 0.8,
-          maxTokens: 4096,
+          max_tokens: 4096,
           tools: [],
-          turnDetection: {
+          turn_detection: {
             type: 'server_vad',
             threshold: 0.5,
             prefix_padding_ms: 300,
             silence_duration_ms: 500,
-            create_response: true
-          },
-          inputAudioFormat: 'pcm16',
-          outputAudioFormat: 'pcm16',
-          inputAudioTranscription: {
+            create_response: true,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+          input_audio_format: 'pcm16',
+          output_audio_format: 'pcm16',
+          input_audio_transcription: {
             enabled: false,
             model: 'whisper-1'
           },
@@ -90,25 +94,25 @@ Always maintain a conversational and natural tone appropriate for phone conversa
       voice: config.voice,
       instructions: config.instructions,
       temperature: config.temperature,
-      max_tokens: config.maxTokens,
-      max_output_tokens: config.maxOutputTokens || config.maxTokens,
+      max_tokens: config.max_tokens,
+      max_output_tokens: config.max_output_tokens || config.max_tokens,
       tools: config.tools || [],
-      turn_detection: config.turnDetection,
-      input_audio_format: config.inputAudioFormat,
-      output_audio_format: config.outputAudioFormat,
-      input_audio_transcription: config.inputAudioTranscription,
+      turn_detection: config.turn_detection,
+      input_audio_format: config.input_audio_format,
+      output_audio_format: config.output_audio_format,
+      input_audio_transcription: config.input_audio_transcription,
       modalities: config.modalities || ['text', 'audio'],
-      enable_images: config.enableImages || false,
-      enable_sip: config.enableSip !== false,
-      enable_mcp: config.enableMcp || false,
-      response_mode: config.responseMode || 'streaming',
-      noise_reduction: config.noiseReduction !== false,
-      echo_cancellation: config.echoCancellation !== false,
-      automatic_gain_control: config.automaticGainControl !== false,
-      tool_choice: config.toolChoice || 'auto',
-      parallel_tool_calls: config.parallelToolCalls !== false,
-      max_response_output_tokens: config.maxResponseOutputTokens,
-      conversation_id: config.conversationId,
+      enable_images: config.enable_images || false,
+      enable_sip: config.enable_sip !== false,
+      enable_mcp: config.enable_mcp || false,
+      response_mode: config.response_mode || 'streaming',
+      noise_reduction: config.noise_reduction !== false,
+      echo_cancellation: config.echo_cancellation !== false,
+      automatic_gain_control: config.automatic_gain_control !== false,
+      tool_choice: config.tool_choice || 'auto',
+      parallel_tool_calls: config.parallel_tool_calls !== false,
+      max_response_output_tokens: config.max_response_output_tokens,
+      conversation_id: config.conversation_id,
       metadata: config.metadata
     };
 

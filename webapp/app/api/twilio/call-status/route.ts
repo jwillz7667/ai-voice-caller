@@ -21,13 +21,13 @@ export async function POST(request: NextRequest) {
       _To,
     } = body;
 
-    // Prepare log data without console logging
-    const _logData = {
+    // Log the call status update
+    console.log("Call status webhook:", {
       CallSid,
       CallStatus,
       CallDuration,
       Direction,
-    };
+    });
 
     // Update call log if it exists
     if (CallSid) {

@@ -28,12 +28,14 @@ export async function GET(_req: NextRequest) {
       });
 
       if (!user) {
-        user = await prisma.users.create({
-          data: {
+        user = await prisma.users.create({ data: {
+        id: crypto.randomUUID(),
             email: defaultEmail,
             name: 'Default User',
-            credits: 1000
-          }
+            credits: 1000,
+        created_at: new Date(),
+        updated_at: new Date()
+      }
         });
       }
     }
@@ -52,8 +54,8 @@ export async function GET(_req: NextRequest) {
 
     // If no config exists, create a default one
     if (!config) {
-      config = await prisma.incoming_call_configs.create({
-        data: {
+      config = await prisma.incoming_call_configs.create({ data: {
+        id: crypto.randomUUID(),
           user_id: user.id,
           name: 'Default Incoming Call Configuration',
           instructions: `You are a helpful AI assistant answering phone calls. Be friendly, professional, and concise.
@@ -63,16 +65,18 @@ Always maintain a conversational and natural tone appropriate for phone conversa
           model: 'gpt-4o-realtime-preview-2024-12-17',
           voice: 'ash',
           temperature: 0.8,
-          maxTokens: 4096,
+          max_tokens: 4096,
           tools: [],
-          turnDetection: {
+          turn_detection: {
             type: 'server_vad',
             threshold: 0.5,
             prefix_padding_ms: 300,
-            silence_duration_ms: 500
-          },
-          inputAudioFormat: 'pcm16',
-          outputAudioFormat: 'pcm16',
+            silence_duration_ms: 500,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+          input_audio_format: 'pcm16',
+          output_audio_format: 'pcm16',
           is_active: true
         }
       });
@@ -145,8 +149,8 @@ export async function POST(req: NextRequest) {
     });
 
     // Create or update the configuration
-    const config = await prisma.incoming_call_configs.create({
-      data: {
+    const config = await prisma.incoming_call_configs.create({ data: {
+        id: crypto.randomUUID(),
         user_id: user.id,
         name: name || 'Incoming Call Configuration',
         instructions,
@@ -156,30 +160,32 @@ export async function POST(req: NextRequest) {
         maxTokens,
         maxOutputTokens,
         tools: tools || [],
-        turnDetection: turnDetection || {
+        turn_detection: turnDetection || {
           type: 'server_vad',
           threshold: 0.5,
           prefix_padding_ms: 300,
           silence_duration_ms: 500,
           create_response: true,
           eagerness: 'auto',
-          interrupt_response: true
-        },
-        inputAudioFormat: inputAudioFormat || 'pcm16',
-        outputAudioFormat: outputAudioFormat || 'pcm16',
+          interrupt_response: true,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+        input_audio_format: inputAudioFormat || 'pcm16',
+        output_audio_format: outputAudioFormat || 'pcm16',
         inputAudioTranscription,
         modalities: modalities || ['text', 'audio'],
-        enableImages: enable_images || false,
-        enableSip: enable_sip !== false,
-        enableMcp: enable_mcp || false,
-        responseMode: response_mode || 'streaming',
-        noiseReduction: noise_reduction !== false,
-        echoCancellation: echo_cancellation !== false,
-        automaticGainControl: automatic_gain_control !== false,
-        toolChoice: tool_choice || 'auto',
-        parallelToolCalls: parallel_tool_calls !== false,
-        maxResponseOutputTokens: max_response_output_tokens,
-        conversationId: conversation_id,
+        enable_images: enable_images || false,
+        enable_sip: enable_sip !== false,
+        enable_mcp: enable_mcp || false,
+        response_mode: response_mode || 'streaming',
+        noise_reduction: noise_reduction !== false,
+        echo_cancellation: echo_cancellation !== false,
+        automatic_gain_control: automatic_gain_control !== false,
+        tool_choice: tool_choice || 'auto',
+        parallel_tool_calls: parallel_tool_calls !== false,
+        max_response_output_tokens: max_response_output_tokens,
+        conversation_id: conversation_id,
         metadata,
         is_active: true
       }

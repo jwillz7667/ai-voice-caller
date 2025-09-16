@@ -26,17 +26,17 @@ export function verifyJWT(token: string): any {
   }
 }
 
-export function createRefreshToken(userId: string): string {
+export function createRefreshToken(user_id: string): string {
   return jwt.sign(
-    { userId, type: 'refresh' },
+    { user_id, type: 'refresh' },
     JWT_SECRET,
     { expiresIn: '30d' }
   );
 }
 
-export function createAccessToken(userId: string, email: string, role: string): string {
+export function createAccessToken(user_id: string, email: string, role: string): string {
   return jwt.sign(
-    { userId, email, role, type: 'access' },
+    { user_id, email, role, type: 'access' },
     JWT_SECRET,
     { expiresIn: '1h' }
   );

@@ -12,7 +12,6 @@ import {
 import { 
   AlertCircle, 
   Activity, 
-  Clock, 
   Server, 
   Radio, 
   Smartphone, 
@@ -21,9 +20,7 @@ import {
   ChevronUp, 
   Code, 
   Copy, 
-  Info, 
-  Eye 
-} from "lucide-react";
+  Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
@@ -68,7 +65,6 @@ export const RealtimeLogs = ({ logs, fullPage = false }: { logs: LogEntry[], ful
     log.type.includes('close');
 
   // Toggle expanded state of a log entry
-  const toggleExpanded = (index: number) => {
     setExpandedLogs(prev => 
       prev.includes(index) 
         ? prev.filter(i => i !== index) 
@@ -160,6 +156,7 @@ export const RealtimeLogs = ({ logs, fullPage = false }: { logs: LogEntry[], ful
     return typeMap[type] || typeMap["default"];
   };
 
+  // Get icon for the source
   const getSourceIcon = (source: string) => {
     switch (source) {
       case "client":
@@ -276,7 +273,7 @@ export const RealtimeLogs = ({ logs, fullPage = false }: { logs: LogEntry[], ful
   };
 
   // Get verbose information about a log entry
-  const getVerboseInfo = (log: LogEntry): { [key: string]: string } => {
+  const getLogDetails = (log: LogEntry) => {
     const result: { [key: string]: string } = {};
     
     // Add event ID

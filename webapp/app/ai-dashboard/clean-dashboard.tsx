@@ -95,7 +95,7 @@ export default function CleanAIDashboard() {
     voice: 'marin',
     instructions: 'You are a helpful AI assistant in a phone call. Be conversational, friendly, and helpful.',
     temperature: 0.8,
-    recordCall: true,
+    record_call: true,
     turn_detection: {
       type: 'semantic_vad',
       eagerness: 'auto',
@@ -431,7 +431,7 @@ export default function CleanAIDashboard() {
 
       // Send configuration to backend via WebSocket if connected (optional)
       if (ws && ws.readyState === WebSocket.OPEN) {
-        const turnDetection: any = {
+        const turn_detection: any = {
           type: config.turn_detection?.type || 'semantic_vad',
           create_response: true
         };
@@ -461,7 +461,7 @@ export default function CleanAIDashboard() {
             input_audio_transcription: {
               model: 'whisper-1'
             },
-            recordCall: config.recordCall // Include recording preference
+            record_call: config.record_call // Include recording preference
           }
         }));
       }
@@ -472,7 +472,7 @@ export default function CleanAIDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone_number: formattedPhone,
-          recordCall: config.recordCall
+          record_call: config.record_call
         })
       });
 
@@ -506,7 +506,7 @@ export default function CleanAIDashboard() {
       const response = await fetch('/api/twilio/end-call', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callSid })
+        body: JSON.stringify({ call_sid })
       });
 
       if (response.ok) {
@@ -946,8 +946,8 @@ export default function CleanAIDashboard() {
                         <p className="text-xs text-muted-foreground">Record calls for quality and training</p>
                       </div>
                       <Switch
-                        checked={config.recordCall}
-                        onCheckedChange={(checked) => setConfig({...config, recordCall: checked})}
+                        checked={config.record_call}
+                        onCheckedChange={(checked) => setConfig({...config, record_call: checked})}
                       />
                     </div>
 
@@ -1026,8 +1026,8 @@ export default function CleanAIDashboard() {
                 )}
                 <div className="flex items-center justify-between p-3 rounded-xl bg-white/10">
                   <span className="text-sm">Recording</span>
-                  <Badge className={config.recordCall ? "bg-green-500/20" : "bg-gray-500/20"}>
-                    {config.recordCall ? 'On' : 'Off'}
+                  <Badge className={config.record_call ? "bg-green-500/20" : "bg-gray-500/20"}>
+                    {config.record_call ? 'On' : 'Off'}
                   </Badge>
                 </div>
               </CardContent>
@@ -1246,7 +1246,7 @@ export default function CleanAIDashboard() {
                           {config.configuration?.turn_detection && (
                             <div>VAD: {config.configuration.turn_detection.type}</div>
                           )}
-                          {config.last_used_at && (
+                          {config.lastUsedAt && (
                             <div>Last used: {new Date(config.lastUsedAt).toLocaleDateString()}</div>
                           )}
                         </div>

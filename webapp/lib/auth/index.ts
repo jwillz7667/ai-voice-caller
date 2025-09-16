@@ -175,16 +175,18 @@ export const authConfig = {
 
           if (!dbUser) {
             // Create new user for OAuth
-            dbUser = await prisma.users.create({
-              data: {
+            dbUser = await prisma.users.create({ data: {
+        id: crypto.randomUUID(),
                 email,
                 name: user.name || profile?.name,
                 role: UserRole.USER,
                 status: UserStatus.ACTIVE,
                 email_verified: new Date(),
                 credits: 100, // Initial credits
-                image: user.image || profile?.image
-              }
+                image: user.image || profile?.image,
+        created_at: new Date(),
+        updated_at: new Date()
+      }
             });
           }
 
@@ -199,8 +201,8 @@ export const authConfig = {
           });
 
           if (!existingAccount && account) {
-            await prisma.accounts.create({
-              data: {
+            await prisma.accounts.create({ data: {
+        id: crypto.randomUUID(),
                 user_id: dbUser.id,
                 type: account.type,
                 provider: account.provider,
@@ -211,8 +213,10 @@ export const authConfig = {
                 token_type: account.token_type,
                 scope: account.scope,
                 id_token: account.id_token,
-                session_state: account.session_state as string
-              }
+                session_state: account.session_state as string,
+        created_at: new Date(),
+        updated_at: new Date()
+      }
             });
           }
 

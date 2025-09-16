@@ -103,12 +103,14 @@ export async function POST(req: NextRequest) {
     await sendVerificationEmail(user.email, verificationToken);
 
     // Create welcome notification
-    await prisma.notifications.create({
-      data: {
+    await prisma.notifications.create({ data: {
+        id: crypto.randomUUID(),
         user_id: user.id,
         type: "INFO",
         title: "Welcome to Verbio AI!",
-        message: "Please verify your email to get started."
+        message: "Please verify your email to get started.",
+        created_at: new Date(),
+        updated_at: new Date()
       }
     });
 
@@ -125,15 +127,17 @@ export async function POST(req: NextRequest) {
     });
 
     // Track analytics
-    await prisma.analytics.create({
-      data: {
+    await prisma.analytics.create({ data: {
+        id: crypto.randomUUID(),
         user_id: user.id,
         event: "user.registered",
         properties: {
           method: "email",
           hasCompany: !!company,
-          hasPhone: !!phone
-        },
+          hasPhone: !!phone,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
         ip: req.headers.get("x-forwarded-for") || req.ip,
         user_agent: req.headers.get("user-agent")
       }

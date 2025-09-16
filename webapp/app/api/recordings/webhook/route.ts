@@ -5,17 +5,17 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const { callSid, recordingSid, recordingUrl, duration, status } = await request.json();
+    const { callSid, recordingSid, recording_url, duration, status } = await request.json();
     
     console.log("Recording webhook received:", {
       callSid,
       recordingSid,
-      recordingUrl,
+      recording_url,
       duration,
       status
     });
 
-    if (!callSid || !recordingSid || !recordingUrl) {
+    if (!callSid || !recordingSid || !recording_url) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -24,11 +24,11 @@ export async function POST(request: NextRequest) {
 
     // Find the call log by callSid
     const callLog = await prisma.call_logs.findUnique({
-      where: { callSid }
+      where: { call_sid }
     });
 
     if (!callLog) {
-      console.warn(`Call log not found for call_sid: ${callSid}`);
+      console.warn(`Call log not found for call_sid: ${ call_sid }`);
       // Store the recording anyway, we might match it later
       // For now, return success to avoid Twilio retries
       return NextResponse.json({ success: true, warning: "Call log not found" });
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     // Check if recording already exists
     const existingRecording = await prisma.recordings.findUnique({
-      where: { recordingSid }
+      where: { recording_sid }
     });
 
     if (existingRecording) {
@@ -47,13 +47,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the recording record
-    const recording = await prisma.recordings.create({
-      data: {
+    const recording = await prisma.recordings.create({ data: {
+        id: crypto.randomUUID(),
         call_log_id: callLog.id,
         recordingSid,
-        recording_url: recordingUrl + ".mp3", // Append .mp3 for direct download
+        recording_url: recording_url + ".mp3", // Append .mp3 for direct download
         duration: parseInt(duration) || 0,
-        status: status || "completed"
+        status: status || "completed",
+        created_at: new Date(),
+        updated_at: new Date()
       }
     });
 

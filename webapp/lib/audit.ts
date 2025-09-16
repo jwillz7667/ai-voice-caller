@@ -4,7 +4,7 @@ interface AuditLogData {
   userId?: string | null;
   action: string;
   entity: string;
-  entityId?: string | null;
+  entity_id?: string | null;
   oldValues?: any;
   newValues?: any;
   metadata?: any;
@@ -14,17 +14,19 @@ interface AuditLogData {
 
 export async function createAuditLog(data: AuditLogData) {
   try {
-    await prisma.audit_logs.create({
-      data: {
+    await prisma.audit_logs.create({ data: {
+        id: crypto.randomUUID(),
         user_id: data.user_id,
         action: data.action,
         entity: data.entity,
-        entityId: data.entityId,
+        entity_id: data.entity_id,
         oldValues: data.oldValues || undefined,
         newValues: data.newValues || undefined,
         metadata: data.metadata || undefined,
         ip: data.ip,
-        user_agent: data.user_agent
+        user_agent: data.user_agent,
+        created_at: new Date(),
+        updated_at: new Date()
       }
     });
   } catch (error) {
@@ -57,7 +59,7 @@ export async function getAuditLogs(filters: {
     orderBy: { created_at: "desc" },
     take: filters.limit || 100,
     include: {
-      user: {
+      users: {
         select: {
           id: true,
           email: true,

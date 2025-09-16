@@ -5,13 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Phone, PhoneOff, Hash, Asterisk, Delete,
   Send, Clock, Volume2, VolumeX, Keyboard,
-  PhoneCall, Navigation, PlayCircle, PauseCircle
-} from "lucide-react";
+  PhoneCall, Navigation } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
 interface DTMFPhonePadProps {

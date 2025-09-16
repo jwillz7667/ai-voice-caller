@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const { callSid } = await request.json();
+    const { call_sid: callSid } = await request.json();
 
     if (!callSid) {
       return NextResponse.json(
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ callSid }),
+      body: JSON.stringify({ call_sid }),
     });
 
     const data = await response.json();

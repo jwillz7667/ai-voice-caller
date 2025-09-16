@@ -56,14 +56,16 @@ export async function GET(request: NextRequest) {
 
     if (!user) {
       // Create new user
-      user = await prisma.users.create({
-        data: {
+      user = await prisma.users.create({ data: {
+        id: crypto.randomUUID(),
           email: googleUser.email,
           name: googleUser.name || googleUser.email.split("@")[0],
           avatar_url: googleUser.picture,
           credits: 10, // Give initial credits for new users
-          email_verified: true, // Google accounts are pre-verified
-        },
+          email_verified: true, // Google accounts are pre-verified,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
       });
     } else {
       // Update existing user with Google info

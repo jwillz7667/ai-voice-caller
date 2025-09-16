@@ -19,7 +19,6 @@ export default function CustomSignupForm() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const _router = useRouter();
   const { register } = useAuth();
 
   // Password strength indicators

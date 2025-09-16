@@ -50,12 +50,14 @@ export async function POST(request: NextRequest) {
           }
         }
       }),
-      prisma.credit_transactions.create({
-        data: {
+      prisma.credit_transactions.create({ data: {
+        id: crypto.randomUUID(),
           user_id: user.id,
           amount: -creditsToDeduct, // Negative for usage
           transaction_type: 'USAGE',
-          description: `${minutesUsed} minute call`
+          description: `${minutesUsed} minute call`,
+          created_at: new Date(),
+          updated_at: new Date()
         }
       })
     ]);

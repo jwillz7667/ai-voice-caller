@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bot, Phone, MessageSquare, Wrench } from "lucide-react";
 import { Item } from "@/components/types";

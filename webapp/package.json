@@ -95,6 +95,7 @@
     "autoprefixer": "10.4.20",
     "eslint": "8.57.1",
     "eslint-config-next": "15.5.2",
+    "glob": "11.0.3",
     "next-on-netlify": "3.0.1",
     "postcss": "8.4.37",
     "postcss-nesting": "13.0.2",

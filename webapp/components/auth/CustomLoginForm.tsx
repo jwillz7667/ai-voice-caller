@@ -18,7 +18,6 @@ export default function CustomLoginForm() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const _router = useRouter();
   const { login } = useAuth();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,7 +80,7 @@ export default function CustomLoginForm() {
     }
   };
 
-  const _handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = async () => {
     // Handled by GoogleSignInButton component
   };
 

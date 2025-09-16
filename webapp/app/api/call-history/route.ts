@@ -33,11 +33,10 @@ export async function GET(request: NextRequest) {
 
     // Fetch call history for the user
     const callLogs = await prisma.call_logs.findMany({
-      where: {
-        userId
+      where: { user_id
       },
       include: {
-        recording: {
+        recordings: {
           select: {
             id: true,
             recording_url: true,
@@ -54,8 +53,7 @@ export async function GET(request: NextRequest) {
 
     // Get total count for pagination
     const total = await prisma.call_logs.count({
-      where: {
-        userId
+      where: { user_id
       }
     });
 

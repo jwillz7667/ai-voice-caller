@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { useUserStore } from '@/lib/user-store';
 import { usePathname } from 'next/navigation';
 
 export default function Header() {

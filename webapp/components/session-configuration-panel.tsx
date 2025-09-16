@@ -25,7 +25,7 @@ interface SessionConfiguration {
   model: string;
   prompt?: { id: string; version?: string };
   tools: string[];
-  recordCall: boolean;
+  record_call: boolean;
   turn_detection: {
     type: 'server_vad' | 'semantic_vad' | 'none';
     threshold?: number;

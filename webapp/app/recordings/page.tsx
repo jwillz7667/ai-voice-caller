@@ -20,7 +20,7 @@ interface Recording {
     phone_number: string;
     direction: string;
     duration: number;
-    startedAt: string;
+    started_at: string;
     status: string;
   };
 }
@@ -116,7 +116,7 @@ export default function RecordingsPage() {
   const handleDownload = async (recordingUrl: string, phone_number: string, date: string) => {
     try {
       // For Twilio recordings, we need to append .mp3 to get the audio file
-      const audioUrl = recordingUrl.includes('.mp3') ? recordingUrl : `${recordingUrl}.mp3`;
+      const audioUrl = recording_url.includes('.mp3') ? recording_url : `${recording_url}.mp3`;
       
       // Create a filename based on phone number and date
       const fileName = `recording-${phoneNumber}-${new Date(date).getTime()}.mp3`;
@@ -216,7 +216,7 @@ export default function RecordingsPage() {
                     <Button
                       size="sm"
                       variant={playingId === recording.id ? 'secondary' : 'outline'}
-                      onClick={() => handlePlay(recording.id, recording.recordingUrl)}
+                      onClick={() => handlePlay(recording.id, recording.recording_url)}
                       className="w-full sm:w-auto text-xs sm:text-sm"
                     >
                       <Play className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
@@ -237,7 +237,7 @@ export default function RecordingsPage() {
                     </Button>
                     <audio
                       id={`audio-${recording.id}`}
-                      src={recording.recordingUrl.includes('.mp3') ? recording.recording_url : `${recording.recording_url}.mp3`}
+                      src={recording.recording_url.includes('.mp3') ? recording.recording_url : `${recording.recording_url}.mp3`}
                       className="hidden"
                       preload="none"
                     />

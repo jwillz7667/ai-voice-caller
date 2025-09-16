@@ -28,10 +28,10 @@ interface IncomingCallConfig {
   model: string;
   voice: string;
   temperature: number;
-  maxTokens: number;
+  max_tokens: number;
   maxOutputTokens?: number;
   tools: any[];
-  turnDetection: {
+  turn_detection: {
     type: 'server_vad' | 'semantic_vad' | 'none';
     threshold?: number;
     prefix_padding_ms?: number;
@@ -40,8 +40,8 @@ interface IncomingCallConfig {
     eagerness?: 'auto' | 'low' | 'medium' | 'high';
     interrupt_response?: boolean;
   };
-  inputAudioFormat: string;
-  outputAudioFormat: string;
+  input_audio_format: string;
+  output_audio_format: string;
   inputAudioTranscription?: {
     enabled?: boolean;
     model?: string;
@@ -243,10 +243,10 @@ export default function IncomingConfigPage() {
     model: 'gpt-realtime',  // Latest 2025 model
     voice: 'cedar',  // New 2025 voice
     temperature: 0.8,
-    maxTokens: 4096,
-    maxOutputTokens: 4096,
+    max_tokens: 4096,
+    max_output_tokens: 4096,
     tools: [],
-    turnDetection: {
+    turn_detection: {
       type: 'server_vad',
       threshold: 0.5,
       prefix_padding_ms: 300,
@@ -255,9 +255,9 @@ export default function IncomingConfigPage() {
       eagerness: 'auto',
       interrupt_response: true
     },
-    inputAudioFormat: 'pcm16',
-    outputAudioFormat: 'pcm16',
-    inputAudioTranscription: {
+    input_audio_format: 'pcm16',
+    output_audio_format: 'pcm16',
+    input_audio_transcription: {
       enabled: false,
       model: 'whisper-1',
       language: 'en',
@@ -611,7 +611,7 @@ export default function IncomingConfigPage() {
                     MCP Servers
                   </Badge>
                 )}
-                {config.turnDetection.type === 'semantic_vad' && (
+                {config.turn_detection.type === 'semantic_vad' && (
                   <Badge variant="secondary">
                     <Sparkles className="h-3 w-3 mr-1" />
                     AI-Powered VAD
@@ -769,15 +769,15 @@ export default function IncomingConfigPage() {
 
                   <div>
                     <Label htmlFor="maxTokens">
-                      Max Response Length: {config.maxTokens} tokens
+                      Max Response Length: {config.max_tokens} tokens
                     </Label>
                     <Slider
                       id="maxTokens"
                       min={128}
                       max={4096}
                       step={128}
-                      value={[config.maxTokens]}
-                      onValueChange={([value]) => updateConfig({ maxTokens: value })}
+                      value={[config.max_tokens]}
+                      onValueChange={([value]) => updateConfig({ max_tokens: value })}
                       className="mt-2"
                     />
                   </div>
@@ -958,10 +958,10 @@ export default function IncomingConfigPage() {
                   <div>
                     <Label htmlFor="vad">Voice Activity Detection (VAD)</Label>
                     <Select
-                      value={config.turnDetection.type}
+                      value={config.turn_detection.type}
                       onValueChange={(value: 'server_vad' | 'semantic_vad' | 'none') =>
                         updateConfig({
-                          turnDetection: { ...config.turnDetection, type: value }
+                          turn_detection: { ...config.turn_detection, type: value }
                         })
                       }
                     >
@@ -994,14 +994,14 @@ export default function IncomingConfigPage() {
                     </Select>
                   </div>
 
-                  {config.turnDetection.type === 'semantic_vad' && (
+                  {config.turn_detection.type === 'semantic_vad' && (
                     <div>
                       <Label htmlFor="eagerness">VAD Eagerness</Label>
                       <Select
-                        value={config.turnDetection.eagerness || 'auto'}
+                        value={config.turn_detection.eagerness || 'auto'}
                         onValueChange={(value: 'auto' | 'low' | 'medium' | 'high') =>
                           updateConfig({
-                            turnDetection: { ...config.turnDetection, eagerness: value }
+                            turn_detection: { ...config.turn_detection, eagerness: value }
                           })
                         }
                       >
@@ -1038,21 +1038,21 @@ export default function IncomingConfigPage() {
                     </div>
                   )}
 
-                  {(config.turnDetection.type === 'server_vad' || config.turnDetection.type === 'semantic_vad') && (
+                  {(config.turn_detection.type === 'server_vad' || config.turn_detection.type === 'semantic_vad') && (
                     <>
                       <div>
                         <Label htmlFor="threshold">
-                          VAD Threshold: {config.turnDetection.threshold}
+                          VAD Threshold: {config.turn_detection.threshold}
                         </Label>
                         <Slider
                           id="threshold"
                           min={0}
                           max={1}
                           step={0.1}
-                          value={[config.turnDetection.threshold || 0.5]}
+                          value={[config.turn_detection.threshold || 0.5]}
                           onValueChange={([value]) =>
                             updateConfig({
-                              turnDetection: { ...config.turnDetection, threshold: value }
+                              turn_detection: { ...config.turn_detection, threshold: value }
                             })
                           }
                           className="mt-2"
@@ -1061,17 +1061,17 @@ export default function IncomingConfigPage() {
 
                       <div>
                         <Label htmlFor="silence">
-                          Silence Duration: {config.turnDetection.silence_duration_ms}ms
+                          Silence Duration: {config.turn_detection.silence_duration_ms}ms
                         </Label>
                         <Slider
                           id="silence"
                           min={200}
                           max={2000}
                           step={100}
-                          value={[config.turnDetection.silence_duration_ms || 500]}
+                          value={[config.turn_detection.silence_duration_ms || 500]}
                           onValueChange={([value]) =>
                             updateConfig({
-                              turnDetection: { ...config.turnDetection, silence_duration_ms: value }
+                              turn_detection: { ...config.turn_detection, silence_duration_ms: value }
                             })
                           }
                           className="mt-2"
@@ -1080,17 +1080,17 @@ export default function IncomingConfigPage() {
 
                       <div>
                         <Label htmlFor="padding">
-                          Prefix Padding: {config.turnDetection.prefix_padding_ms}ms
+                          Prefix Padding: {config.turn_detection.prefix_padding_ms}ms
                         </Label>
                         <Slider
                           id="padding"
                           min={0}
                           max={1000}
                           step={50}
-                          value={[config.turnDetection.prefix_padding_ms || 300]}
+                          value={[config.turn_detection.prefix_padding_ms || 300]}
                           onValueChange={([value]) =>
                             updateConfig({
-                              turnDetection: { ...config.turnDetection, prefix_padding_ms: value }
+                              turn_detection: { ...config.turn_detection, prefix_padding_ms: value }
                             })
                           }
                           className="mt-2"
@@ -1105,16 +1105,16 @@ export default function IncomingConfigPage() {
                           </p>
                         </div>
                         <Switch
-                          checked={config.turnDetection.create_response || false}
+                          checked={config.turn_detection.create_response || false}
                           onCheckedChange={(checked) =>
                             updateConfig({
-                              turnDetection: { ...config.turnDetection, create_response: checked }
+                              turn_detection: { ...config.turn_detection, create_response: checked }
                             })
                           }
                         />
                       </div>
 
-                      {config.turnDetection.type === 'semantic_vad' && (
+                      {config.turn_detection.type === 'semantic_vad' && (
                         <div className="flex items-center justify-between p-4 border rounded-lg">
                           <div>
                             <Label>Allow Interruption</Label>
@@ -1123,10 +1123,10 @@ export default function IncomingConfigPage() {
                             </p>
                           </div>
                           <Switch
-                            checked={config.turnDetection.interrupt_response !== false}
+                            checked={config.turn_detection.interrupt_response !== false}
                             onCheckedChange={(checked) =>
                               updateConfig({
-                                turnDetection: { ...config.turnDetection, interrupt_response: checked }
+                                turn_detection: { ...config.turn_detection, interrupt_response: checked }
                               })
                             }
                           />
@@ -1139,8 +1139,8 @@ export default function IncomingConfigPage() {
                     <div>
                       <Label htmlFor="inputFormat">Input Audio Format</Label>
                       <Select
-                        value={config.inputAudioFormat}
-                        onValueChange={(value) => updateConfig({ inputAudioFormat: value })}
+                        value={config.input_audio_format}
+                        onValueChange={(value) => updateConfig({ input_audio_format: value })}
                       >
                         <SelectTrigger id="inputFormat" className="mt-1">
                           <SelectValue />
@@ -1156,8 +1156,8 @@ export default function IncomingConfigPage() {
                     <div>
                       <Label htmlFor="outputFormat">Output Audio Format</Label>
                       <Select
-                        value={config.outputAudioFormat}
-                        onValueChange={(value) => updateConfig({ outputAudioFormat: value })}
+                        value={config.output_audio_format}
+                        onValueChange={(value) => updateConfig({ output_audio_format: value })}
                       >
                         <SelectTrigger id="outputFormat" className="mt-1">
                           <SelectValue />
@@ -1221,11 +1221,11 @@ export default function IncomingConfigPage() {
                         </p>
                       </div>
                       <Switch
-                        checked={config.inputAudioTranscription?.enabled || false}
+                        checked={config.input_audio_transcription?.enabled || false}
                         onCheckedChange={(checked) =>
                           updateConfig({
-                            inputAudioTranscription: {
-                              ...config.inputAudioTranscription,
+                            input_audio_transcription: {
+                              ...config.input_audio_transcription,
                               enabled: checked,
                               model: 'whisper-1'
                             }
@@ -1234,16 +1234,16 @@ export default function IncomingConfigPage() {
                       />
                     </div>
 
-                    {config.inputAudioTranscription?.enabled && (
+                    {config.input_audio_transcription?.enabled && (
                       <div className="ml-4 space-y-3 p-4 border-l-2 border-blue-200">
                         <div>
                           <Label htmlFor="transcription-model">Transcription Model</Label>
                           <Select
-                            value={config.inputAudioTranscription?.model || 'whisper-1'}
+                            value={config.input_audio_transcription?.model || 'whisper-1'}
                             onValueChange={(value) =>
                               updateConfig({
-                                inputAudioTranscription: {
-                                  ...config.inputAudioTranscription,
+                                input_audio_transcription: {
+                                  ...config.input_audio_transcription,
                                   model: value
                                 }
                               })
@@ -1264,11 +1264,11 @@ export default function IncomingConfigPage() {
                           <Label htmlFor="transcription-language">Language</Label>
                           <Input
                             id="transcription-language"
-                            value={config.inputAudioTranscription?.language || 'en'}
+                            value={config.input_audio_transcription?.language || 'en'}
                             onChange={(e) =>
                               updateConfig({
-                                inputAudioTranscription: {
-                                  ...config.inputAudioTranscription,
+                                input_audio_transcription: {
+                                  ...config.input_audio_transcription,
                                   language: e.target.value
                                 }
                               })
