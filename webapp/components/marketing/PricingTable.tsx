@@ -38,7 +38,7 @@ export default function PricingTable() {
               ))}
             </ul>
             <Link
-              href="/signup"
+              href="/register"
               className="mt-6 inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-gray-100"
             >
               Get started

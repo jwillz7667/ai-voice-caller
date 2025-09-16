@@ -10,7 +10,7 @@ export default function CTA() {
               <h3 className="text-2xl font-bold">Ready to build with Verbio?</h3>
               <p className="text-indigo-100">Create an account and make your first call in minutes.</p>
             </div>
-            <Link href="/signup" className="rounded-lg bg-white px-4 py-2 font-semibold text-indigo-700 hover:bg-gray-100">
+            <Link href="/register" className="rounded-lg bg-white px-4 py-2 font-semibold text-indigo-700 hover:bg-gray-100">
               Start free
             </Link>
           </div>

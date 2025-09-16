@@ -20,6 +20,8 @@ model User {
   company            String?
   jobTitle           String?              @map("job_title")
   avatarUrl          String?              @map("avatar_url")
+  googleId           String?              @unique @map("google_id")
+  avatar             String?
   bio                String?
   timezone           String               @default("UTC")
   locale             String               @default("en")
@@ -28,6 +30,7 @@ model User {
   permissions        String[]             @default([])
   twoFactorEnabled   Boolean              @default(false) @map("two_factor_enabled")
   twoFactorSecret    String?              @map("two_factor_secret")
+  lastLogin          DateTime?            @map("last_login")
   lastLoginAt        DateTime?            @map("last_login_at")
   lastLoginIp        String?              @map("last_login_ip")
   loginCount         Int                  @default(0) @map("login_count")

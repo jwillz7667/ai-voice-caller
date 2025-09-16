@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import Sidebar from "@/components/sidebar";
+import ModernNavigation from "@/components/modern-navigation";
 import { Toaster } from "@/components/ui/toaster";
 
 export default function AIDashboardLayout({
@@ -36,10 +36,14 @@ export default function AIDashboardLayout({
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto">
-        {children}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+      <ModernNavigation />
+      <main className="relative">
+        <div className="content-container page-padding">
+          <div className="animate-fade-in-up">
+            {children}
+          </div>
+        </div>
       </main>
       <Toaster />
     </div>

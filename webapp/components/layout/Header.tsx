@@ -31,7 +31,7 @@ export default function Header() {
             {user && (
               <>
                 <Link 
-                  href="/dashboard" 
+                  href="/ai-dashboard" 
                   className={`text-sm font-medium transition-colors hover:text-primary ${pathname === '/dashboard' ? 'text-foreground' : 'text-muted-foreground'}`}
                 >
                   Dashboard
@@ -91,7 +91,7 @@ export default function Header() {
                         <span className="font-medium text-foreground">{user.email}</span>
                       </div>
                       <Link
-                        href="/dashboard"
+                        href="/ai-dashboard"
                         className="block px-4 py-2 text-sm text-foreground hover:bg-accent"
                         onClick={() => setMenuOpen(false)}
                       >
@@ -168,7 +168,7 @@ export default function Header() {
             {user ? (
               <>
                 <Link
-                  href="/dashboard"
+                  href="/ai-dashboard"
                   className="text-foreground hover:text-primary"
                   onClick={() => setMenuOpen(false)}
                 >

@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import twilio from "twilio";
 
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
+export const dynamic = 'force-dynamic';
 
-const client = accountSid && authToken ? twilio(accountSid, authToken) : null;
-
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const { callSid } = await req.json();
+    const { callSid } = await request.json();
 
     if (!callSid) {
       return NextResponse.json(
@@ -17,31 +13,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!client) {
-      console.error("Twilio client not configured");
+    // Get backend URL from environment
+    const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_WEBSOCKET_URL?.replace('wss://', 'https://').replace('ws://', 'http://') || "http://localhost:8081";
+
+    // Forward the request to the backend which handles all Twilio logic
+    const response = await fetch(`${backendUrl}/end-call`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ callSid }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
       return NextResponse.json(
-        { error: "Twilio configuration missing" },
-        { status: 500 }
+        { error: data.error || "Failed to end call" },
+        { status: response.status }
       );
     }
 
-    // Update the call to complete it
-    const call = await client.calls(callSid).update({
-      status: "completed",
-    });
-
+    // Return the response from backend
     return NextResponse.json({
       success: true,
-      callSid: call.sid,
-      status: call.status,
+      message: data.message || "Call ended successfully"
     });
+
   } catch (error: any) {
-    console.error("Error ending call:", error);
+    console.error('Error ending call:', error);
     return NextResponse.json(
-      { 
-        error: "Failed to end call", 
-        details: error.message 
-      },
+      { error: error.message || "Failed to end call" },
       { status: 500 }
     );
   }

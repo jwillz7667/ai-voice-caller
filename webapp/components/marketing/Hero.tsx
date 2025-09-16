@@ -30,7 +30,7 @@ export default function Hero() {
           transition={{ delay: 0.2 }}
           className="mt-8 flex items-center gap-3"
         >
-          <Link href="/signup"><ButtonNeo>Start free</ButtonNeo></Link>
+          <Link href="/register"><ButtonNeo>Start free</ButtonNeo></Link>
           <Link href="/pricing" className="text-sm font-semibold text-primary hover:underline">See pricing →</Link>
         </motion.div>
       </div>

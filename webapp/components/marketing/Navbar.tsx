@@ -50,7 +50,7 @@ export default function Navbar() {
         </nav>
         <div className="flex items-center gap-2">
           <Link
-            href="/signin"
+            href="/login"
             className={
               isHome
                 ? "hidden md:inline-flex h-9 items-center rounded-lg border border-white/30 bg-white/10 px-4 text-sm font-medium text-white shadow-sm hover:bg-white/20"
@@ -60,7 +60,7 @@ export default function Navbar() {
             Sign in
           </Link>
           <Link
-            href="/signup"
+            href="/register"
             className={
               isHome
                 ? "inline-flex h-9 items-center rounded-lg bg-white px-4 text-sm font-semibold text-blue-700 shadow hover:bg-gray-100"

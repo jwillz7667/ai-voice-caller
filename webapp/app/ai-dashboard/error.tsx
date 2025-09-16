@@ -41,7 +41,7 @@ export default function Error({
               <RefreshCw className="h-4 w-4 mr-2" />
               Try Again
             </Button>
-            <Link href="/dashboard" className="flex-1">
+            <Link href="/ai-dashboard" className="flex-1">
               <Button variant="outline" className="w-full">
                 <Home className="h-4 w-4 mr-2" />
                 Go Home

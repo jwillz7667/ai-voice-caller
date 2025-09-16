@@ -170,7 +170,7 @@ export default function RecordingsPage() {
             <Phone className="h-10 w-10 md:h-12 md:w-12 text-muted-foreground mb-4" />
             <p className="text-base md:text-lg font-medium">No recordings yet</p>
             <p className="text-sm md:text-base text-muted-foreground mt-2 text-center">Your call recordings will appear here</p>
-            <Link href="/dashboard" className="w-full sm:w-auto">
+            <Link href="/ai-dashboard" className="w-full sm:w-auto">
               <Button className="mt-4 w-full sm:w-auto">Make a Call</Button>
             </Link>
           </CardContent>
