@@ -17,6 +17,9 @@ export async function POST(request: NextRequest) {
     // Get backend URL from environment
     const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_WEBSOCKET_URL?.replace('wss://', 'https://').replace('ws://', 'http://') || "http://localhost:8081";
 
+    console.log('[make-call] Using backend URL:', backendUrl);
+    console.log('[make-call] Phone number:', phoneNumber);
+
     // Forward the request to the backend which handles all Twilio logic
     const response = await fetch(`${backendUrl}/make-call`, {
       method: 'POST',

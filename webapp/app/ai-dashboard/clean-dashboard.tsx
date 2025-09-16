@@ -128,63 +128,51 @@ export default function CleanAIDashboard() {
     }
   }, [user, loading, router]);
 
-  // Connect to WebSocket for calls
+  // Connect to WebSocket for monitoring
   useEffect(() => {
     if (!user) return;
 
     const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:8081';
-    const callWsUrl = `${wsUrl}/call`;
     const logsWsUrl = `${wsUrl}/logs`;
 
-    // Connect to call WebSocket
-    const callWebsocket = new WebSocket(callWsUrl);
+    // Connect to logs WebSocket for monitoring calls
+    const logsWebsocket = new WebSocket(logsWsUrl);
 
-    callWebsocket.onopen = () => {
+    logsWebsocket.onopen = () => {
       setIsConnected(true);
       addLog('info', 'Connected to server');
     };
 
-    callWebsocket.onmessage = (event) => {
+    logsWebsocket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        handleWebSocketMessage(data);
+        // Handle both regular logs and call events
+        if (data.type === 'log') {
+          addLog(data.level || 'info', data.message);
+        } else {
+          handleWebSocketMessage(data);
+        }
       } catch (error) {
         // Handle binary or non-JSON messages
         console.log('Received non-JSON message:', event.data);
       }
     };
 
-    callWebsocket.onerror = (error) => {
+    logsWebsocket.onerror = (error) => {
       console.error('WebSocket error:', error);
       addLog('error', 'Connection error');
     };
 
-    callWebsocket.onclose = () => {
+    logsWebsocket.onclose = () => {
       setIsConnected(false);
       setIsCallActive(false);
       addLog('info', 'Disconnected from server');
     };
 
-    setWs(callWebsocket);
-
-    // Connect to logs WebSocket
-    const logsWebsocket = new WebSocket(logsWsUrl);
-
-    logsWebsocket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'log') {
-          addLog(data.level || 'info', data.message);
-        }
-      } catch (error) {
-        console.log('Log message:', event.data);
-      }
-    };
-
+    setWs(logsWebsocket);
     setLogsWs(logsWebsocket);
 
     return () => {
-      callWebsocket.close();
       logsWebsocket.close();
     };
   }, [user]);
