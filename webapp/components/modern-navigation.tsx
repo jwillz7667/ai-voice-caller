@@ -7,10 +7,8 @@ import { cn } from "../lib/utils";
 import { Button } from "./ui/button";
 import { useAuth } from "@/lib/auth-context";
 import {
-  Home,
   ClipboardList,
   Settings,
-  Phone,
   Cpu,
   Mic,
   Menu,
@@ -29,9 +27,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 const navigationItems = [
-  { icon: Home, label: "Dashboard", href: "/dashboard" },
   { icon: Cpu, label: "AI Dashboard", href: "/ai-dashboard" },
-  { icon: Phone, label: "Call Interface", href: "/app" },
   { icon: Mic, label: "Recordings", href: "/recordings" },
   { icon: ClipboardList, label: "Logs", href: "/logs" },
   { icon: Settings, label: "Settings", href: "/settings" },
