@@ -1,19 +1,26 @@
-import Navbar from "@/components/marketing/Navbar";
-import Footer from "@/components/marketing/Footer";
-import ContactForm from "@/components/marketing/ContactForm";
+import { Metadata } from "next";
+import Header from "@/components/marketing/Header";
+import FooterSection from "@/components/marketing/FooterSection";
+import ContactFormModern from "@/components/contact/ContactFormModern";
+
+export const metadata: Metadata = {
+  title: "Contact - Verbio AI Voice Platform",
+  description: "Get in touch with our team to learn how Verbio can transform your voice operations.",
+  openGraph: {
+    title: "Contact Verbio",
+    description: "Let's discuss your voice AI needs",
+    url: "https://verbio.app/contact",
+  },
+};
 
 export default function ContactPage() {
   return (
-    <div>
-      <Navbar />
-      <section className="container mx-auto px-4 py-16">
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Contact</h1>
-        <p className="mt-3 max-w-2xl text-muted-foreground">Tell us about your use case and we’ll follow up quickly.</p>
-        <div className="mt-8">
-          <ContactForm />
-        </div>
-      </section>
-      <Footer />
+    <div className="min-h-screen bg-white">
+      <Header />
+      <main className="pt-24">
+        <ContactFormModern />
+      </main>
+      <FooterSection />
     </div>
   );
 }

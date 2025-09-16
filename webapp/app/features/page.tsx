@@ -1,17 +1,21 @@
-import Navbar from "@/components/marketing/Navbar";
-import Footer from "@/components/marketing/Footer";
-import FeatureGrid from "@/components/marketing/FeatureGrid";
+import { Metadata } from "next";
+import Header from "@/components/marketing/Header";
+import FooterSection from "@/components/marketing/FooterSection";
+import Features from "@/components/marketing/Features";
+
+export const metadata: Metadata = {
+  title: "Features - Verbio AI Voice Platform",
+  description: "Everything you need to build world-class voice experiences with OpenAI and Twilio.",
+};
 
 export default function FeaturesPage() {
   return (
-    <div>
-      <Navbar />
-      <section className="container mx-auto px-4 pt-12">
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Features</h1>
-        <p className="mt-3 text-muted-foreground max-w-2xl">Everything you need to build world‑class voice experiences with OpenAI and Twilio.</p>
-      </section>
-      <FeatureGrid />
-      <Footer />
+    <div className="min-h-screen bg-white">
+      <Header />
+      <main className="pt-24">
+        <Features />
+      </main>
+      <FooterSection />
     </div>
   );
 }
