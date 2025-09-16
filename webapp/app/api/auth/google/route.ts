@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     oauth2Client.setCredentials(tokens);
 
     // Get user info from Google
-    const response = await fetch(
+    const userInfoResponse = await fetch(
       "https://www.googleapis.com/oauth2/v2/userinfo",
       {
         headers: {
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    const googleUser = await response.json();
+    const googleUser = await userInfoResponse.json();
 
     // Check if user exists in database
     let user = await prisma.user.findUnique({
