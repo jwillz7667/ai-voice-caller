@@ -128,53 +128,59 @@ export default function CleanAIDashboard() {
     }
   }, [user, loading, router]);
 
-  // Connect to WebSocket for monitoring
+  // Connect to WebSocket for monitoring (optional - not required for making calls)
   useEffect(() => {
     if (!user) return;
 
     const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:8081';
     const logsWsUrl = `${wsUrl}/logs`;
 
-    // Connect to logs WebSocket for monitoring calls
-    const logsWebsocket = new WebSocket(logsWsUrl);
+    try {
+      // Connect to logs WebSocket for monitoring calls
+      const logsWebsocket = new WebSocket(logsWsUrl);
 
-    logsWebsocket.onopen = () => {
-      setIsConnected(true);
-      addLog('info', 'Connected to server');
-    };
+      logsWebsocket.onopen = () => {
+        setIsConnected(true);
+        addLog('info', 'Connected to monitoring server');
+      };
 
-    logsWebsocket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        // Handle both regular logs and call events
-        if (data.type === 'log') {
-          addLog(data.level || 'info', data.message);
-        } else {
-          handleWebSocketMessage(data);
+      logsWebsocket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          // Handle both regular logs and call events
+          if (data.type === 'log') {
+            addLog(data.level || 'info', data.message);
+          } else {
+            handleWebSocketMessage(data);
+          }
+        } catch (error) {
+          // Handle binary or non-JSON messages
+          console.log('Received non-JSON message:', event.data);
         }
-      } catch (error) {
-        // Handle binary or non-JSON messages
-        console.log('Received non-JSON message:', event.data);
-      }
-    };
+      };
 
-    logsWebsocket.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      addLog('error', 'Connection error');
-    };
+      logsWebsocket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        addLog('warning', 'Monitoring connection error - calls will still work');
+        // Don't set isConnected to false on error - calls can still work via API
+      };
 
-    logsWebsocket.onclose = () => {
-      setIsConnected(false);
-      setIsCallActive(false);
-      addLog('info', 'Disconnected from server');
-    };
+      logsWebsocket.onclose = () => {
+        setIsConnected(false);
+        // Don't set isCallActive to false - let the call API handle that
+        addLog('info', 'Monitoring disconnected');
+      };
 
-    setWs(logsWebsocket);
-    setLogsWs(logsWebsocket);
+      setWs(logsWebsocket);
+      setLogsWs(logsWebsocket);
 
-    return () => {
-      logsWebsocket.close();
-    };
+      return () => {
+        logsWebsocket.close();
+      };
+    } catch (error) {
+      console.error('Failed to connect to monitoring WebSocket:', error);
+      addLog('info', 'Monitoring unavailable - calls will still work');
+    }
   }, [user]);
 
   // Handle messages from backend
@@ -333,7 +339,7 @@ export default function CleanAIDashboard() {
       // Format phone number with +1
       const formattedPhone = formatPhoneForCalling(phoneNumber);
 
-      // Send configuration to backend via WebSocket
+      // Send configuration to backend via WebSocket if connected (optional)
       if (ws && ws.readyState === WebSocket.OPEN) {
         const turnDetection: any = {
           type: config.turn_detection?.type || 'semantic_vad',
@@ -604,7 +610,7 @@ export default function CleanAIDashboard() {
                     <Button
                       onClick={handleStartCall}
                       className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600"
-                      disabled={!phoneNumber || !isConnected || isLoading}
+                      disabled={phoneNumber.length !== 10 || isLoading}
                     >
                       {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PhoneCall className="h-4 w-4 mr-2" />}
                       Start Call
