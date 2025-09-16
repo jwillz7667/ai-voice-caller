@@ -32,7 +32,7 @@ async function updatePhoneNumber() {
     
     // Find the phone number resource
     const phoneNumbers = await client.incomingPhoneNumbers.list({
-      phoneNumber: PHONE_NUMBER
+      phone_number: PHONE_NUMBER
     });
     
     if (phoneNumbers.length === 0) {
@@ -128,7 +128,7 @@ async function listAllPhoneNumbers() {
     const numbers = await client.incomingPhoneNumbers.list();
     
     numbers.forEach((number, index) => {
-      console.log(`\n${index + 1}. ${number.phoneNumber}`);
+      console.log(`\n${index + 1}. ${number.phone_number}`);
       console.log('   SID:', number.sid);
       console.log('   Voice URL:', number.voiceUrl || 'Not set');
       console.log('   Status Callback:', number.statusCallback || 'Not set');

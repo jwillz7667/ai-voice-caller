@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
     // Update call log if it exists
     if (CallSid) {
       try {
-        const callLog = await prisma.callLog.findUnique({
-          where: { callSid: CallSid }
+        const callLog = await prisma.call_logs.findUnique({
+          where: { call_sid: CallSid }
         });
 
         if (callLog) {
@@ -47,14 +47,14 @@ export async function POST(request: NextRequest) {
             updateData.endedAt = new Date();
           }
 
-          await prisma.callLog.update({
-            where: { callSid: CallSid },
+          await prisma.call_logs.update({
+            where: { call_sid: CallSid },
             data: updateData
           });
 
           console.log(`Call log updated for ${CallSid}: ${CallStatus}`);
         } else {
-          console.warn(`Call log not found for callSid: ${CallSid}`);
+          console.warn(`Call log not found for call_sid: ${CallSid}`);
         }
       } catch (error) {
         console.error("Failed to update call log:", error);

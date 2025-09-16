@@ -109,7 +109,7 @@ export default function LogsPage() {
           url: process.env.NEXT_PUBLIC_WEBSOCKET_URL || "ws://localhost:8081/logs",
           timestamp: new Date().toISOString(),
           browserInfo: {
-            userAgent: navigator.userAgent,
+            user_agent: navigator.user_agent,
             platform: navigator.platform,
           }
         }

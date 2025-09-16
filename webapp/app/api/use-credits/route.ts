@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     // Deduct credits and record transaction in a transaction
     const [updatedUser, transaction] = await prisma.$transaction([
-      prisma.user.update({
+      prisma.users.update({
         where: { id: user.id },
         data: {
           credits: {
@@ -50,11 +50,11 @@ export async function POST(request: NextRequest) {
           }
         }
       }),
-      prisma.creditTransaction.create({
+      prisma.credit_transactions.create({
         data: {
-          userId: user.id,
+          user_id: user.id,
           amount: -creditsToDeduct, // Negative for usage
-          transactionType: 'USAGE',
+          transaction_type: 'USAGE',
           description: `${minutesUsed} minute call`
         }
       })
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      creditsUsed: creditsToDeduct,
+      credits_used: creditsToDeduct,
       remainingCredits: updatedUser.credits,
       transactionId: transaction.id
     });

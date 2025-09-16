@@ -42,13 +42,13 @@ export function createAccessToken(userId: string, email: string, role: string): 
   );
 }
 
-export function verifyRefreshToken(token: string): { userId: string } {
+export function verifyRefreshToken(token: string): { user_id: string } {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     if (decoded.type !== 'refresh') {
       throw new Error('Invalid token type');
     }
-    return { userId: decoded.userId };
+    return { user_id: decoded.user_id };
   } catch (error) {
     throw new Error('Invalid refresh token');
   }

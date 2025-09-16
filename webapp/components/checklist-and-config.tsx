@@ -80,7 +80,7 @@ export default function ChecklistAndConfig({
           const resLocal = await fetch("http://localhost:8081/public-url");
           if (resLocal.ok) {
             const pubData = await resLocal.json();
-            foundPublicUrl = pubData?.publicUrl || "";
+            foundPublicUrl = pubData?.public_url || "";
             setLocalServerUp(true);
             setPublicUrl(foundPublicUrl);
           } else {

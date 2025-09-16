@@ -22,22 +22,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Create or update the realtime session
-    const realtimeSession = await prisma.realtimeSession.upsert({
+    const realtimeSession = await prisma.realtime_sessions.upsert({
       where: {
-        sessionId: config.sessionId,
+        session_id: config.session_id,
       },
       update: {
         configuration: config,
         model: config.model || 'gpt-realtime',
         voice: config.voice || 'marin',
         vadMode: config.turn_detection?.type || 'semantic_vad',
-        lastActivity: new Date(),
-        updatedAt: new Date(),
+        last_activity: new Date(),
+        updated_at: new Date(),
       },
       create: {
-        userId: session.user.id,
-        sessionId: config.sessionId,
-        callSid: config.callSid || null,
+        user_id: session.user.id,
+        session_id: config.session_id,
+        call_sid: config.call_sid || null,
         configuration: config,
         model: config.model || 'gpt-realtime',
         voice: config.voice || 'marin',
@@ -49,11 +49,11 @@ export async function POST(request: NextRequest) {
 
     // Update the user's active incoming call config if this is being saved as default
     if (config.saveAsDefault) {
-      await prisma.incomingCallConfig.upsert({
+      await prisma.incoming_call_configs.upsert({
         where: {
           userId_isActive: {
-            userId: session.user.id,
-            isActive: true,
+            user_id: session.user.id,
+            is_active: true,
           },
         },
         update: {
@@ -87,16 +87,16 @@ export async function POST(request: NextRequest) {
           promptConfig: config.prompt || null,
           recordCall: config.recordCall !== undefined ? config.recordCall : true,
           outputAudioGain: config.output_audio_gain || 1.0,
-          lastUsedAt: new Date(),
-          usageCount: {
+          last_used_at: new Date(),
+          usage_count: {
             increment: 1,
           },
-          updatedAt: new Date(),
+          updated_at: new Date(),
         },
         create: {
-          userId: session.user.id,
+          user_id: session.user.id,
           name: config.name || 'AI Dashboard Configuration',
-          isActive: true,
+          is_active: true,
           model: config.model || 'gpt-realtime',
           configType: config.type || 'realtime',
           instructions: config.instructions || 'You are a helpful AI assistant.',
@@ -127,15 +127,15 @@ export async function POST(request: NextRequest) {
           promptConfig: config.prompt || null,
           recordCall: config.recordCall !== undefined ? config.recordCall : true,
           outputAudioGain: config.output_audio_gain || 1.0,
-          lastUsedAt: new Date(),
-          usageCount: 1,
+          last_used_at: new Date(),
+          usage_count: 1,
         },
       });
     }
 
     return NextResponse.json({
       success: true,
-      sessionId: realtimeSession.sessionId,
+      session_id: realtimeSession.session_id,
       saved: !!config.saveAsDefault,
     });
   } catch (error: any) {
@@ -159,10 +159,10 @@ export async function GET(request: NextRequest) {
 
     if (sessionId) {
       // Get specific session configuration
-      const realtimeSession = await prisma.realtimeSession.findUnique({
+      const realtimeSession = await prisma.realtime_sessions.findUnique({
         where: {
           sessionId,
-          userId: session.user.id,
+          user_id: session.user.id,
         },
       });
 
@@ -180,10 +180,10 @@ export async function GET(request: NextRequest) {
       });
     } else {
       // Get user's default configuration
-      const config = await prisma.incomingCallConfig.findFirst({
+      const config = await prisma.incoming_call_configs.findFirst({
         where: {
-          userId: session.user.id,
-          isActive: true,
+          user_id: session.user.id,
+          is_active: true,
         },
       });
 

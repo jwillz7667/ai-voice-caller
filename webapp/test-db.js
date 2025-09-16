@@ -7,7 +7,7 @@ const prisma = new PrismaClient({
 async function testConnection() {
   try {
     console.log('Testing database connection...');
-    const users = await prisma.user.findMany();
+    const users = await prisma.users.findMany();
     console.log('Connection successful!');
     console.log('Users found:', users.length);
     users.forEach(user => {

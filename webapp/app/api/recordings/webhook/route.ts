@@ -23,19 +23,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Find the call log by callSid
-    const callLog = await prisma.callLog.findUnique({
+    const callLog = await prisma.call_logs.findUnique({
       where: { callSid }
     });
 
     if (!callLog) {
-      console.warn(`Call log not found for callSid: ${callSid}`);
+      console.warn(`Call log not found for call_sid: ${callSid}`);
       // Store the recording anyway, we might match it later
       // For now, return success to avoid Twilio retries
       return NextResponse.json({ success: true, warning: "Call log not found" });
     }
 
     // Check if recording already exists
-    const existingRecording = await prisma.recording.findUnique({
+    const existingRecording = await prisma.recordings.findUnique({
       where: { recordingSid }
     });
 
@@ -47,11 +47,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the recording record
-    const recording = await prisma.recording.create({
+    const recording = await prisma.recordings.create({
       data: {
-        callLogId: callLog.id,
+        call_log_id: callLog.id,
         recordingSid,
-        recordingUrl: recordingUrl + ".mp3", // Append .mp3 for direct download
+        recording_url: recordingUrl + ".mp3", // Append .mp3 for direct download
         duration: parseInt(duration) || 0,
         status: status || "completed"
       }
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     // Update call log duration if needed
     if (duration && callLog.duration === 0) {
-      await prisma.callLog.update({
+      await prisma.call_logs.update({
         where: { id: callLog.id },
         data: { duration: parseInt(duration) }
       });

@@ -47,7 +47,7 @@ export async function PATCH(request: NextRequest) {
     
     const { name, phone, company, jobTitle } = await request.json();
     
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await prisma.users.update({
       where: { id: user.id },
       data: {
         ...(name !== undefined && { name }),

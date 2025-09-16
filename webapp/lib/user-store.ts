@@ -8,8 +8,8 @@ export interface UserProfile {
   name: string | null;
   phone: string | null;
   company: string | null;
-  jobTitle: string | null;
-  avatarUrl: string | null;
+  job_title: string | null;
+  avatar_url: string | null;
   credits: number;
   createdAt?: string;
   updatedAt?: string;

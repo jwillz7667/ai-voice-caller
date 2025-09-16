@@ -21,7 +21,7 @@ export async function POST(
     }
 
     // Verify token
-    let userId: string;
+    let user_id: string;
     try {
       const decoded = jwt.verify(token.value, JWT_SECRET) as any;
       userId = decoded.userId;
@@ -30,16 +30,16 @@ export async function POST(
     }
 
     // Update usage count and last used timestamp
-    await prisma.savedConfiguration.updateMany({
+    await prisma.saved_configurations.updateMany({
       where: {
         id: params.id,
         userId // Ensure the config belongs to the user
       },
       data: {
-        usageCount: {
+        usage_count: {
           increment: 1
         },
-        lastUsedAt: new Date()
+        last_used_at: new Date()
       }
     });
 

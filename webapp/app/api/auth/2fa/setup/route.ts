@@ -16,9 +16,9 @@ export async function GET(_req: NextRequest) {
       );
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { id: session.user.id },
-      select: { email: true, twoFactorEnabled: true }
+      select: { email: true, two_factor_enabled: true }
     });
 
     if (!user) {
@@ -28,7 +28,7 @@ export async function GET(_req: NextRequest) {
       );
     }
 
-    if (user.twoFactorEnabled) {
+    if (user.two_factor_enabled) {
       return NextResponse.json(
         { error: "2FA is already enabled" },
         { status: 400 }
@@ -47,10 +47,10 @@ export async function GET(_req: NextRequest) {
 
     // Store secret temporarily (you might want to use Redis for this)
     // For now, we'll store it in the database but not enable 2FA yet
-    await prisma.user.update({
+    await prisma.users.update({
       where: { id: session.user.id },
       data: {
-        twoFactorSecret: secret.base32
+        two_factor_secret: secret.base32
       }
     });
 
@@ -89,19 +89,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { id: session.user.id },
-      select: { twoFactorSecret: true, twoFactorEnabled: true }
+      select: { two_factor_secret: true, two_factor_enabled: true }
     });
 
-    if (!user?.twoFactorSecret) {
+    if (!user?.two_factor_secret) {
       return NextResponse.json(
         { error: "2FA setup not initiated" },
         { status: 400 }
       );
     }
 
-    if (user.twoFactorEnabled) {
+    if (user.two_factor_enabled) {
       return NextResponse.json(
         { error: "2FA is already enabled" },
         { status: 400 }
@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
 
     // Verify token
     const verified = speakeasy.totp.verify({
-      secret: user.twoFactorSecret,
+      secret: user.two_factor_secret!,
       encoding: 'base32',
       token,
       window: 2
@@ -124,10 +124,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Enable 2FA
-    await prisma.user.update({
+    await prisma.users.update({
       where: { id: session.user.id },
       data: {
-        twoFactorEnabled: true
+        two_factor_enabled: true
       }
     });
 
@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
 
     // Store backup codes (hashed in production)
     // You might want to create a separate table for this
-    await prisma.user.update({
+    await prisma.users.update({
       where: { id: session.user.id },
       data: {
         metadata: {
@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
 
     // Create audit log
     await createAuditLog({
-      userId: session.user.id,
+      user_id: session.user.id,
       action: "2FA_ENABLED",
       entity: "User",
       entityId: session.user.id,

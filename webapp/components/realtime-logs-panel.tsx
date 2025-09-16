@@ -203,7 +203,7 @@ export const RealtimeLogs = ({ logs, fullPage = false }: { logs: LogEntry[], ful
     
     // For outgoing calls, show phone number
     if (data.phoneNumber) {
-      return `Phone: ${data.phoneNumber}`;
+      return `Phone: ${data.phone_number}`;
     }
     
     // For other objects, show a condensed representation
@@ -481,7 +481,7 @@ export const RealtimeLogs = ({ logs, fullPage = false }: { logs: LogEntry[], ful
                     </div>
                     <div className="col-span-2">
                       <span className="text-blue-500">Phone Number:</span>{" "}
-                      {log.data.callDetails.phoneNumber}
+                      {log.data.callDetails.phone_number}
                     </div>
                   </>
                 )}

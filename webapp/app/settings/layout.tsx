@@ -15,7 +15,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 
   if (loading) return <div className="p-6">Loading…</div>;
   if (!user) return null;
-  if (user && user.emailVerified === false) {
+  if (user && user.email_verified === false) {
     return (
       <div className="min-h-screen grid place-items-center">
         <div className="max-w-md text-center">

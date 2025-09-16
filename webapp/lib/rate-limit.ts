@@ -85,7 +85,7 @@ export async function rateLimit(
     await rateLimiter.consume(key, points);
 
     // Log to database for persistent tracking
-    await prisma.rateLimit.upsert({
+    await prisma.rate_limits.upsert({
       where: {
         identifier_endpoint_window: {
           identifier: key,
@@ -112,7 +112,7 @@ export async function rateLimit(
     const secs = Math.round(rejRes.msBeforeNext / 1000) || 60;
 
     // Update blocked status in database
-    await prisma.rateLimit.update({
+    await prisma.rate_limits.update({
       where: {
         identifier_endpoint_window: {
           identifier: key,
@@ -149,7 +149,7 @@ export async function isRateLimited(
   identifier: string,
   endpoint: string
 ): Promise<boolean> {
-  const rateLimit = await prisma.rateLimit.findFirst({
+  const rateLimit = await prisma.rate_limits.findFirst({
     where: {
       identifier,
       endpoint,
@@ -166,7 +166,7 @@ export async function isRateLimited(
 export async function cleanupRateLimits() {
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-  await prisma.rateLimit.deleteMany({
+  await prisma.rate_limits.deleteMany({
     where: {
       OR: [
         {
@@ -175,7 +175,7 @@ export async function cleanupRateLimits() {
           },
         },
         {
-          updatedAt: {
+          updated_at: {
             lt: oneHourAgo,
           },
         },

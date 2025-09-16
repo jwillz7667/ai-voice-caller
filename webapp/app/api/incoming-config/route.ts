@@ -10,7 +10,7 @@ async function getUserFromCookie() {
 
   if (!userEmail) return null;
 
-  return await prisma.user.findUnique({
+  return await prisma.users.findUnique({
     where: { email: userEmail }
   });
 }
@@ -23,12 +23,12 @@ export async function GET(_req: NextRequest) {
     if (!user) {
       // For development/testing, get or create a default user
       const defaultEmail = 'user@example.com';
-      user = await prisma.user.findUnique({
+      user = await prisma.users.findUnique({
         where: { email: defaultEmail }
       });
 
       if (!user) {
-        user = await prisma.user.create({
+        user = await prisma.users.create({
           data: {
             email: defaultEmail,
             name: 'Default User',
@@ -43,18 +43,18 @@ export async function GET(_req: NextRequest) {
     }
 
     // Get active incoming call configuration
-    let config = await prisma.incomingCallConfig.findFirst({
+    let config = await prisma.incoming_call_configs.findFirst({
       where: {
-        userId: user.id,
-        isActive: true
+        user_id: user.id,
+        is_active: true
       }
     });
 
     // If no config exists, create a default one
     if (!config) {
-      config = await prisma.incomingCallConfig.create({
+      config = await prisma.incoming_call_configs.create({
         data: {
-          userId: user.id,
+          user_id: user.id,
           name: 'Default Incoming Call Configuration',
           instructions: `You are a helpful AI assistant answering phone calls. Be friendly, professional, and concise.
 Your primary goal is to help the caller with their request.
@@ -73,7 +73,7 @@ Always maintain a conversational and natural tone appropriate for phone conversa
           },
           inputAudioFormat: 'pcm16',
           outputAudioFormat: 'pcm16',
-          isActive: true
+          is_active: true
         }
       });
     }
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
 
     if (!user) {
       const defaultEmail = 'user@example.com';
-      user = await prisma.user.findUnique({
+      user = await prisma.users.findUnique({
         where: { email: defaultEmail }
       });
     }
@@ -134,20 +134,20 @@ export async function POST(req: NextRequest) {
     } = body;
 
     // Deactivate any existing active configurations
-    await prisma.incomingCallConfig.updateMany({
+    await prisma.incoming_call_configs.updateMany({
       where: {
-        userId: user.id,
-        isActive: true
+        user_id: user.id,
+        is_active: true
       },
       data: {
-        isActive: false
+        is_active: false
       }
     });
 
     // Create or update the configuration
-    const config = await prisma.incomingCallConfig.create({
+    const config = await prisma.incoming_call_configs.create({
       data: {
-        userId: user.id,
+        user_id: user.id,
         name: name || 'Incoming Call Configuration',
         instructions,
         model,
@@ -181,7 +181,7 @@ export async function POST(req: NextRequest) {
         maxResponseOutputTokens: max_response_output_tokens,
         conversationId: conversation_id,
         metadata,
-        isActive: true
+        is_active: true
       }
     });
 
@@ -202,7 +202,7 @@ export async function PUT(req: NextRequest) {
 
     if (!user) {
       const defaultEmail = 'user@example.com';
-      user = await prisma.user.findUnique({
+      user = await prisma.users.findUnique({
         where: { email: defaultEmail }
       });
     }
@@ -219,10 +219,10 @@ export async function PUT(req: NextRequest) {
     }
 
     // Verify ownership
-    const existingConfig = await prisma.incomingCallConfig.findFirst({
+    const existingConfig = await prisma.incoming_call_configs.findFirst({
       where: {
         id,
-        userId: user.id
+        user_id: user.id
       }
     });
 
@@ -231,7 +231,7 @@ export async function PUT(req: NextRequest) {
     }
 
     // Update the configuration
-    const config = await prisma.incomingCallConfig.update({
+    const config = await prisma.incoming_call_configs.update({
       where: { id },
       data: updateData
     });

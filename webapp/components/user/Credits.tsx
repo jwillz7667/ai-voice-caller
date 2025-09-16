@@ -35,7 +35,7 @@ export default function Credits() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userId: user.id,
+          user_id: user.id,
           packageType: packageId,
           returnUrl: window.location.origin + '/dashboard/credits',
         }),

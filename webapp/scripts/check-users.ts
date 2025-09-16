@@ -6,19 +6,19 @@ async function checkUsers() {
   try {
     console.log('Checking database users...\n');
 
-    const users = await prisma.user.findMany({
+    const users = await prisma.users.findMany({
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
         status: true,
-        emailVerified: true,
-        creditBalance: true,
-        createdAt: true,
+        email_verified: true,
+        credit_balance: true,
+        created_at: true,
       },
       orderBy: {
-        createdAt: 'asc'
+        created_at: 'asc'
       }
     });
 
@@ -31,14 +31,14 @@ async function checkUsers() {
         console.log(`   Name: ${user.name || 'Not set'}`);
         console.log(`   Role: ${user.role}`);
         console.log(`   Status: ${user.status}`);
-        console.log(`   Email Verified: ${user.emailVerified}`);
-        console.log(`   Credits: ${user.creditBalance}`);
-        console.log(`   Created: ${user.createdAt.toISOString()}\n`);
+        console.log(`   Email Verified: ${user.email_verified}`);
+        console.log(`   Credits: ${user.credit_balance}`);
+        console.log(`   Created: ${user.created_at.toISOString()}\n`);
       });
     }
 
     // Check if admin user exists
-    const adminUser = await prisma.user.findUnique({
+    const adminUser = await prisma.users.findUnique({
       where: { email: 'admin@verbio.ai' }
     });
 

@@ -10,7 +10,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const JWT_EXPIRES_IN = '7d';
 
 export interface JWTPayload {
-  userId: string;
+  user_id: string;
   email: string;
 }
 
@@ -34,10 +34,10 @@ export async function createSession(userId: string, email: string): Promise<stri
   const token = generateToken({ userId, email });
   
   // Store session in database
-  await prisma.session.create({
+  await prisma.sessions.create({
     data: {
       userId,
-      sessionToken: token,
+      session_token: token,
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     },
   });
@@ -51,8 +51,8 @@ export async function validateSession(token: string): Promise<User | null> {
     verifyToken(token);
 
     // Check if session exists in database
-    const session = await prisma.session.findUnique({
-      where: { sessionToken: token },
+    const session = await prisma.sessions.findUnique({
+      where: { session_token: token },
       include: { user: true },
     });
 
@@ -67,15 +67,15 @@ export async function validateSession(token: string): Promise<User | null> {
 }
 
 export async function deleteSession(token: string): Promise<void> {
-  await prisma.session.delete({
-    where: { sessionToken: token },
+  await prisma.sessions.delete({
+    where: { session_token: token },
   }).catch(() => {
     // Ignore if session doesn't exist
   });
 }
 
 export async function cleanupExpiredSessions(): Promise<void> {
-  await prisma.session.deleteMany({
+  await prisma.sessions.deleteMany({
     where: {
       expires: {
         lt: new Date(),

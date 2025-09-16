@@ -22,7 +22,7 @@ declare module "next-auth" {
       role: UserRole;
       status: UserStatus;
       permissions: string[];
-      twoFactorEnabled: boolean;
+      two_factor_enabled: boolean;
       credits?: number;
     };
   }
@@ -34,7 +34,7 @@ declare module "next-auth" {
     role: UserRole;
     status: UserStatus;
     permissions: string[];
-    twoFactorEnabled: boolean;
+    two_factor_enabled: boolean;
     credits?: number;
   }
 }
@@ -45,7 +45,7 @@ declare module "next-auth/jwt" {
     role: UserRole;
     status: UserStatus;
     permissions: string[];
-    twoFactorEnabled: boolean;
+    two_factor_enabled: boolean;
     credits?: number;
   }
 }
@@ -85,7 +85,7 @@ export const authConfig = {
           throw new Error("Invalid credentials");
         }
 
-        const user = await prisma.user.findUnique({
+        const user = await prisma.users.findUnique({
           where: { email: credentials.email as string },
           select: {
             id: true,
@@ -94,8 +94,8 @@ export const authConfig = {
             password: true,
             role: true,
             status: true,
-            emailVerified: true,
-            twoFactorEnabled: true,
+            email_verified: true,
+            two_factor_enabled: true,
             credits: true
           }
         });
@@ -120,7 +120,7 @@ export const authConfig = {
 
         // Create audit log
         await createAuditLog({
-          userId: user.id,
+          user_id: user.id,
           action: "LOGIN",
           details: {
             method: "credentials",
@@ -135,7 +135,7 @@ export const authConfig = {
           role: user.role,
           status: user.status,
           permissions: [],
-          twoFactorEnabled: user.twoFactorEnabled,
+          two_factor_enabled: user.two_factor_enabled,
           credits: user.credits || 0
         };
       }
@@ -169,19 +169,19 @@ export const authConfig = {
 
         try {
           // Check if user exists
-          let dbUser = await prisma.user.findUnique({
+          let dbUser = await prisma.users.findUnique({
             where: { email }
           });
 
           if (!dbUser) {
             // Create new user for OAuth
-            dbUser = await prisma.user.create({
+            dbUser = await prisma.users.create({
               data: {
                 email,
                 name: user.name || profile?.name,
                 role: UserRole.USER,
                 status: UserStatus.ACTIVE,
-                emailVerified: new Date(),
+                email_verified: new Date(),
                 credits: 100, // Initial credits
                 image: user.image || profile?.image
               }
@@ -189,22 +189,22 @@ export const authConfig = {
           }
 
           // Create OAuth account link if not exists
-          const existingAccount = await prisma.account.findUnique({
+          const existingAccount = await prisma.accounts.findUnique({
             where: {
               provider_providerAccountId: {
                 provider: account.provider,
-                providerAccountId: account.providerAccountId
+                provider_account_id: account.provider_account_id
               }
             }
           });
 
           if (!existingAccount && account) {
-            await prisma.account.create({
+            await prisma.accounts.create({
               data: {
-                userId: dbUser.id,
+                user_id: dbUser.id,
                 type: account.type,
                 provider: account.provider,
-                providerAccountId: account.providerAccountId,
+                provider_account_id: account.provider_account_id,
                 refresh_token: account.refresh_token,
                 access_token: account.access_token,
                 expires_at: account.expires_at,
@@ -218,7 +218,7 @@ export const authConfig = {
 
           // Create audit log
           await createAuditLog({
-            userId: dbUser.id,
+            user_id: dbUser.id,
             action: "LOGIN",
             details: {
               method: account.provider,
@@ -255,16 +255,16 @@ export const authConfig = {
         token.role = user.role || UserRole.USER;
         token.status = user.status || UserStatus.ACTIVE;
         token.permissions = user.permissions || [];
-        token.twoFactorEnabled = user.twoFactorEnabled || false;
+        token.two_factor_enabled = user.two_factor_enabled || false;
         token.credits = user.credits || 0;
       } else if (token.id) {
         // Subsequent requests - refresh user data
-        const dbUser = await prisma.user.findUnique({
+        const dbUser = await prisma.users.findUnique({
           where: { id: token.id },
           select: {
             role: true,
             status: true,
-            twoFactorEnabled: true,
+            two_factor_enabled: true,
             credits: true
           }
         });
@@ -272,7 +272,7 @@ export const authConfig = {
         if (dbUser) {
           token.role = dbUser.role;
           token.status = dbUser.status;
-          token.twoFactorEnabled = dbUser.twoFactorEnabled;
+          token.two_factor_enabled = dbUser.twoFactorEnabled;
           token.credits = dbUser.credits || 0;
         }
       }
@@ -291,7 +291,7 @@ export const authConfig = {
         session.user.role = token.role;
         session.user.status = token.status;
         session.user.permissions = token.permissions;
-        session.user.twoFactorEnabled = token.twoFactorEnabled;
+        session.user.two_factor_enabled = token.twoFactorEnabled;
         session.user.credits = token.credits;
       }
 

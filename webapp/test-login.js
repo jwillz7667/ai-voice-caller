@@ -15,7 +15,7 @@ async function testPassword() {
   const prisma = new PrismaClient();
   
   try {
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { email: 'demo@example.com' }
     });
     

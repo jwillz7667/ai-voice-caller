@@ -18,9 +18,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify token
-    let userId: string;
+    let user_id: string;
     try {
-      const decoded = jwt.verify(token.value, JWT_SECRET) as { userId: string };
+      const decoded = jwt.verify(token.value, JWT_SECRET) as { user_id: string };
       userId = decoded.userId;
     } catch (_error) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get("offset") || "0");
 
     // Fetch call history for the user
-    const callLogs = await prisma.callLog.findMany({
+    const callLogs = await prisma.call_logs.findMany({
       where: {
         userId
       },
@@ -40,20 +40,20 @@ export async function GET(request: NextRequest) {
         recording: {
           select: {
             id: true,
-            recordingUrl: true,
+            recording_url: true,
             duration: true
           }
         }
       },
       orderBy: {
-        createdAt: "desc"
+        created_at: "desc"
       },
       take: limit,
       skip: offset
     });
 
     // Get total count for pagination
-    const total = await prisma.callLog.count({
+    const total = await prisma.call_logs.count({
       where: {
         userId
       }

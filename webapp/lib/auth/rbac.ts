@@ -107,7 +107,7 @@ export async function requirePermission(
     session.user.permissions || [],
     permission,
     {
-      userId: session.user.id,
+      user_id: session.user.id,
       ownerId: context?.ownerId,
     }
   );

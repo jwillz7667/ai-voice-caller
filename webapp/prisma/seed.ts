@@ -8,7 +8,7 @@ async function main() {
 
   // Create admin user
   const adminPassword = await bcrypt.hash("Admin@123456", 12);
-  const admin = await prisma.user.upsert({
+  const admin = await prisma.users.upsert({
     where: { email: "admin@verbio.ai" },
     update: {},
     create: {
@@ -18,8 +18,8 @@ async function main() {
       username: "admin",
       role: UserRole.SUPER_ADMIN,
       status: UserStatus.ACTIVE,
-      emailVerified: true,
-      emailVerifiedAt: new Date(),
+      email_verified: true,
+      email_verified_at: new Date(),
       credits: 10000,
       permissions: ["*"],
       metadata: {
@@ -41,7 +41,7 @@ async function main() {
       username: "johndoe",
       role: UserRole.USER,
       company: "Acme Corp",
-      jobTitle: "Product Manager",
+      job_title: "Product Manager",
       phone: "+1234567890"
     },
     {
@@ -50,7 +50,7 @@ async function main() {
       username: "janesmith",
       role: UserRole.USER,
       company: "Tech Solutions",
-      jobTitle: "Software Engineer",
+      job_title: "Software Engineer",
       phone: "+1234567891"
     },
     {
@@ -59,33 +59,37 @@ async function main() {
       username: "moderator",
       role: UserRole.MODERATOR,
       company: "Verbio AI",
-      jobTitle: "Community Manager"
+      job_title: "Community Manager"
     }
   ];
 
   for (const userData of demoUsers) {
-    const user = await prisma.user.upsert({
+    const user = await prisma.users.upsert({
       where: { email: userData.email },
       update: {},
       create: {
+        id: crypto.randomUUID(),
         ...userData,
         password: demoPassword,
         status: UserStatus.ACTIVE,
-        emailVerified: true,
-        emailVerifiedAt: new Date(),
+        email_verified: true,
+        email_verified_at: new Date(),
         credits: 100,
         permissions: userData.role === UserRole.MODERATOR
           ? ["users.read", "calls.read", "analytics.read"]
-          : []
+          : [],
+        created_at: new Date(),
+        updated_at: new Date()
       }
     });
 
     console.log("✅ Created demo user:", user.email);
 
     // Create welcome notification
-    await prisma.notification.create({
+    await prisma.notifications.create({
       data: {
-        userId: user.id,
+        id: crypto.randomUUID(),
+        user_id: user.id,
         type: NotificationType.INFO,
         title: "Welcome to Verbio AI!",
         message: "Your account has been created. Start exploring our AI voice calling features!"
@@ -94,7 +98,7 @@ async function main() {
   }
 
   // Create sample saved configurations
-  const users = await prisma.user.findMany({
+  const users = await prisma.users.findMany({
     where: { role: UserRole.USER }
   });
 
@@ -114,8 +118,8 @@ async function main() {
         }
       },
       category: "support",
-      isTemplate: true,
-      isPublic: true
+      is_template: true,
+      is_public: true
     },
     {
       name: "Sales Assistant",
@@ -131,8 +135,8 @@ async function main() {
         }
       },
       category: "sales",
-      isTemplate: true,
-      isPublic: true
+      is_template: true,
+      is_public: true
     },
     {
       name: "Technical Support",
@@ -149,17 +153,20 @@ async function main() {
         }
       },
       category: "technical",
-      isTemplate: true,
-      isPublic: true
+      is_template: true,
+      is_public: true
     }
   ];
 
   for (const config of sampleConfigs) {
-    const savedConfig = await prisma.savedConfiguration.create({
+    const savedConfig = await prisma.saved_configurations.create({
       data: {
+        id: crypto.randomUUID(),
         ...config,
-        userId: users[0]?.id || '',
-        tags: [config.category!, "template", "verified"]
+        user_id: users[0]?.id || '',
+        tags: [config.category!, "template", "verified"],
+        created_at: new Date(),
+        updated_at: new Date()
       }
     });
 
@@ -178,9 +185,10 @@ async function main() {
     for (const event of analyticsEvents) {
       await prisma.analytics.create({
         data: {
-          userId: user.id,
+          id: crypto.randomUUID(),
+          user_id: user.id,
           ...event,
-          sessionId: `session_${Math.random().toString(36).substring(7)}`,
+          session_id: `session_${Math.random().toString(36).substring(7)}`,
           timestamp: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000) // Random time in last 7 days
         }
       });
@@ -193,17 +201,20 @@ async function main() {
   const services = ["api", "database", "websocket", "ai_service"];
 
   for (const service of services) {
-    await prisma.systemHealth.create({
+    await prisma.system_health.create({
       data: {
+        id: crypto.randomUUID(),
         service,
         status: "healthy",
         uptime: 99.9,
         latency: Math.floor(Math.random() * 50) + 10,
-        errorRate: Math.random() * 0.1,
+        error_rate: Math.random() * 0.1,
         metadata: {
           version: "1.0.0",
           region: "us-west-1"
-        }
+        },
+        created_at: new Date(),
+        updated_at: new Date()
       }
     });
   }

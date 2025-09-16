@@ -19,7 +19,7 @@ export async function GET(_request: NextRequest) {
     }
 
     // Verify token
-    let userId: string;
+    let user_id: string;
     try {
       const decoded = jwt.verify(token.value, JWT_SECRET) as any;
       userId = decoded.userId;
@@ -28,13 +28,13 @@ export async function GET(_request: NextRequest) {
     }
 
     // Fetch saved configurations for the user
-    const savedConfigs = await prisma.savedConfiguration.findMany({
+    const savedConfigs = await prisma.saved_configurations.findMany({
       where: {
         userId
       },
       orderBy: [
-        { lastUsedAt: "desc" },
-        { createdAt: "desc" }
+        { last_used_at: "desc" },
+        { created_at: "desc" }
       ]
     });
 
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify token
-    let userId: string;
+    let user_id: string;
     try {
       const decoded = jwt.verify(token.value, JWT_SECRET) as any;
       userId = decoded.userId;
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create saved configuration
-    const savedConfig = await prisma.savedConfiguration.create({
+    const savedConfig = await prisma.saved_configurations.create({
       data: {
         userId,
         name,
@@ -109,7 +109,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Verify token
-    let userId: string;
+    let user_id: string;
     try {
       const decoded = jwt.verify(token.value, JWT_SECRET) as any;
       userId = decoded.userId;
@@ -128,7 +128,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete the configuration (only if it belongs to the user)
-    await prisma.savedConfiguration.deleteMany({
+    await prisma.saved_configurations.deleteMany({
       where: {
         id: configId,
         userId

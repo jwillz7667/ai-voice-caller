@@ -11,8 +11,8 @@ declare module "next-auth" {
       role: UserRole;
       status: UserStatus;
       permissions: string[];
-      emailVerified: boolean;
-      twoFactorEnabled: boolean;
+      email_verified: boolean;
+      two_factor_enabled: boolean;
       credits: number;
       username?: string | null;
       avatarUrl?: string | null;
@@ -26,8 +26,8 @@ declare module "next-auth" {
     role: UserRole;
     status: UserStatus;
     permissions: string[];
-    emailVerified: boolean;
-    twoFactorEnabled: boolean;
+    email_verified: boolean;
+    two_factor_enabled: boolean;
     credits: number;
     username?: string | null;
     avatarUrl?: string | null;
@@ -42,8 +42,8 @@ declare module "next-auth/jwt" {
     role: UserRole;
     status: UserStatus;
     permissions: string[];
-    emailVerified: boolean;
-    twoFactorEnabled: boolean;
+    email_verified: boolean;
+    two_factor_enabled: boolean;
     credits: number;
     username?: string | null;
     avatarUrl?: string | null;

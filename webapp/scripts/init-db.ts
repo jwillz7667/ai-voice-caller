@@ -9,39 +9,46 @@ async function main() {
   // Create a demo user
   const demoPassword = await hashPassword('demo123');
   
-  const demoUser = await prisma.user.upsert({
+  const demoUser = await prisma.users.upsert({
     where: { email: 'demo@example.com' },
     update: {},
     create: {
+      id: crypto.randomUUID(),
       email: 'demo@example.com',
       password: demoPassword,
       name: 'Demo User',
       phone: '+1234567890',
       company: 'Demo Company',
-      jobTitle: 'Developer',
+      job_title: 'Developer',
       credits: 1000,
-      emailVerified: true,
+      email_verified: true,
+      created_at: new Date(),
+      updated_at: new Date()
     },
   });
   
   console.log('✅ Created demo user:', demoUser.email);
   
   // Add some sample credit transactions
-  await prisma.creditTransaction.createMany({
+  await prisma.credit_transactions.createMany({
     data: [
       {
-        userId: demoUser.id,
+        id: crypto.randomUUID(),
+        user_id: demoUser.id,
         amount: 1000,
         balance: 1000,
-        transactionType: 'BONUS',
+        transaction_type: 'BONUS',
         description: 'Welcome bonus',
+        created_at: new Date()
       },
       {
-        userId: demoUser.id,
+        id: crypto.randomUUID(),
+        user_id: demoUser.id,
         amount: -10,
         balance: 990,
-        transactionType: 'USAGE',
+        transaction_type: 'USAGE',
         description: 'Test call - 10 minutes',
+        created_at: new Date()
       },
     ],
   });
@@ -49,15 +56,18 @@ async function main() {
   console.log('✅ Created sample transactions');
   
   // Create a sample call log
-  await prisma.callLog.create({
+  await prisma.call_logs.create({
     data: {
-      userId: demoUser.id,
-      sessionId: 'sample-session-001',
-      phoneNumber: '+19876543210',
+      id: crypto.randomUUID(),
+      user_id: demoUser.id,
+      session_id: 'sample-session-001',
+      phone_number: '+19876543210',
       direction: 'OUTBOUND',
       duration: 600, // 10 minutes
       status: 'COMPLETED',
-      creditsUsed: 10,
+      credits_used: 10,
+      created_at: new Date(),
+      updated_at: new Date(),
       transcript: {
         messages: [
           { role: 'assistant', content: 'Hello, how can I help you today?' },

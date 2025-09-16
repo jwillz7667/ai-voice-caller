@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     // Return the response from backend
     return NextResponse.json({
       success: true,
-      callSid: data.callSid,
+      call_sid: data.call_sid,
       message: data.message || "Call initiated successfully"
     });
 

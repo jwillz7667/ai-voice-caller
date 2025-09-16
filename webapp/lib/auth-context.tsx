@@ -14,8 +14,8 @@ interface User {
   avatarUrl?: string | null;
   credits: number;
   emailVerified?: boolean;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface AuthContextType {
@@ -46,12 +46,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: 'Demo User',
         phone: '+10000000000',
         company: 'Demo Co',
-        jobTitle: 'Developer',
-        avatarUrl: null,
+        job_title: 'Developer',
+        avatar_url: null,
         credits: 1000,
-        emailVerified: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        email_verified: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
       setUser(mockUser);
       setToken('bypass');
@@ -100,12 +100,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: 'Demo User',
         phone: '+10000000000',
         company: 'Demo Co',
-        jobTitle: 'Developer',
-        avatarUrl: null,
+        job_title: 'Developer',
+        avatar_url: null,
         credits: 1000,
-        emailVerified: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        email_verified: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
       setUser(mockUser);
       setToken('bypass');
@@ -151,12 +151,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: name || 'Demo User',
         phone: '+10000000000',
         company: 'Demo Co',
-        jobTitle: 'Developer',
-        avatarUrl: null,
+        job_title: 'Developer',
+        avatar_url: null,
         credits: 1000,
-        emailVerified: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        email_verified: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
       setUser(mockUser);
       setToken('bypass');

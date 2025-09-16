@@ -246,7 +246,7 @@ export default function CleanAIDashboard() {
       case 'call.connected':
         setIsCallActive(true);
         setCallSid(data.callSid);
-        addLog('success', `Call connected: ${data.callSid}`);
+        addLog('success', `Call connected: ${data.call_sid}`);
         break;
 
       case 'call.disconnected':
@@ -471,7 +471,7 @@ export default function CleanAIDashboard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phoneNumber: formattedPhone,
+          phone_number: formattedPhone,
           recordCall: config.recordCall
         })
       });
@@ -483,7 +483,7 @@ export default function CleanAIDashboard() {
 
       setCallSid(data.callSid);
       setIsCallActive(true);
-      addLog('success', `Call initiated: ${data.callSid}`);
+      addLog('success', `Call initiated: ${data.call_sid}`);
 
     } catch (error) {
       console.error('Error starting call:', error);
@@ -1123,7 +1123,7 @@ export default function CleanAIDashboard() {
                         </div>
                         <div className="space-y-1">
                           <div className="text-sm">
-                            <span className="font-medium">{call.phoneNumber}</span>
+                            <span className="font-medium">{call.phone_number}</span>
                             {call.duration > 0 && (
                               <span className="text-muted-foreground ml-2">
                                 ({formatDuration(call.duration)})
@@ -1135,7 +1135,7 @@ export default function CleanAIDashboard() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => window.open(call.recording.recordingUrl, '_blank')}
+                                onClick={() => window.open(call.recording.recording_url, '_blank')}
                               >
                                 <Mic className="w-3 h-3 mr-1" />
                                 Play Recording
@@ -1246,7 +1246,7 @@ export default function CleanAIDashboard() {
                           {config.configuration?.turn_detection && (
                             <div>VAD: {config.configuration.turn_detection.type}</div>
                           )}
-                          {config.lastUsedAt && (
+                          {config.last_used_at && (
                             <div>Last used: {new Date(config.lastUsedAt).toLocaleDateString()}</div>
                           )}
                         </div>

@@ -9,7 +9,7 @@ async function testLogin(email: string, password: string) {
 
   try {
     // Find user
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { email }
     });
 
@@ -35,11 +35,11 @@ async function testLogin(email: string, password: string) {
 
     if (isValid) {
       // Update last login
-      await prisma.user.update({
+      await prisma.users.update({
         where: { id: user.id },
         data: {
-          lastLoginAt: new Date(),
-          loginCount: { increment: 1 }
+          last_login_at: new Date(),
+          login_count: { increment: 1 }
         }
       });
       console.log('✅ Login successful - updated last login time');

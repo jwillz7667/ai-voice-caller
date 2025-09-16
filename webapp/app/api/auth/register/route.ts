@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user already exists
-    const existingUser = await prisma.user.findFirst({
+    const existingUser = await prisma.users.findFirst({
       where: {
         OR: [
           { email },
@@ -67,8 +67,9 @@ export async function POST(req: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // Create user
-    const user = await prisma.user.create({
+    const user = await prisma.users.create({
       data: {
+        id: crypto.randomUUID(),
         email,
         password: hashedPassword,
         name: name || email.split('@')[0],
@@ -78,6 +79,8 @@ export async function POST(req: NextRequest) {
         status: UserStatus.PENDING,
         role: UserRole.USER,
         credits: 100, // Initial credits
+        created_at: new Date(),
+        updated_at: new Date()
       }
     });
 
@@ -85,12 +88,14 @@ export async function POST(req: NextRequest) {
     const verificationToken = generateToken();
     const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    await prisma.emailVerification.create({
+    await prisma.email_verifications.create({
       data: {
-        userId: user.id,
+        id: crypto.randomUUID(),
+        user_id: user.id,
         email: user.email,
         token: verificationToken,
-        expires
+        expires,
+        created_at: new Date()
       }
     });
 
@@ -98,9 +103,9 @@ export async function POST(req: NextRequest) {
     await sendVerificationEmail(user.email, verificationToken);
 
     // Create welcome notification
-    await prisma.notification.create({
+    await prisma.notifications.create({
       data: {
-        userId: user.id,
+        user_id: user.id,
         type: "INFO",
         title: "Welcome to Verbio AI!",
         message: "Please verify your email to get started."
@@ -109,7 +114,7 @@ export async function POST(req: NextRequest) {
 
     // Create audit log
     await createAuditLog({
-      userId: user.id,
+      user_id: user.id,
       action: "REGISTER",
       entity: "User",
       entityId: user.id,
@@ -122,7 +127,7 @@ export async function POST(req: NextRequest) {
     // Track analytics
     await prisma.analytics.create({
       data: {
-        userId: user.id,
+        user_id: user.id,
         event: "user.registered",
         properties: {
           method: "email",
@@ -130,7 +135,7 @@ export async function POST(req: NextRequest) {
           hasPhone: !!phone
         },
         ip: req.headers.get("x-forwarded-for") || req.ip,
-        userAgent: req.headers.get("user-agent")
+        user_agent: req.headers.get("user-agent")
       }
     });
 

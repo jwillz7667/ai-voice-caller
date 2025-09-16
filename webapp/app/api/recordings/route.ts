@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify token
-    let userId: string;
+    let user_id: string;
     try {
       const decoded = jwt.verify(token.value, JWT_SECRET) as any;
       userId = decoded.userId;
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get("offset") || "0");
 
     // Fetch recordings for the user
-    const recordings = await prisma.recording.findMany({
+    const recordings = await prisma.recordings.findMany({
       where: {
         callLog: {
           userId
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       include: {
         callLog: {
           select: {
-            phoneNumber: true,
+            phone_number: true,
             direction: true,
             duration: true,
             startedAt: true,
@@ -50,14 +50,14 @@ export async function GET(request: NextRequest) {
         }
       },
       orderBy: {
-        createdAt: "desc"
+        created_at: "desc"
       },
       take: limit,
       skip: offset
     });
 
     // Get total count for pagination
-    const total = await prisma.recording.count({
+    const total = await prisma.recordings.count({
       where: {
         callLog: {
           userId

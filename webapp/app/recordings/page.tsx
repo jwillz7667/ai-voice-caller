@@ -11,13 +11,13 @@ import Link from 'next/link';
 
 interface Recording {
   id: string;
-  recordingSid: string;
-  recordingUrl: string;
+  recording_sid: string;
+  recording_url: string;
   duration: number;
   status: string;
-  createdAt: string;
+  created_at: string;
   callLog: {
-    phoneNumber: string;
+    phone_number: string;
     direction: string;
     duration: number;
     startedAt: string;
@@ -113,7 +113,7 @@ export default function RecordingsPage() {
     }
   };
 
-  const handleDownload = async (recordingUrl: string, phoneNumber: string, date: string) => {
+  const handleDownload = async (recordingUrl: string, phone_number: string, date: string) => {
     try {
       // For Twilio recordings, we need to append .mp3 to get the audio file
       const audioUrl = recordingUrl.includes('.mp3') ? recordingUrl : `${recordingUrl}.mp3`;
@@ -186,7 +186,7 @@ export default function RecordingsPage() {
                       <Phone className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground mt-1 sm:mt-0" />
                       <div className="flex-1">
                         <CardTitle className="text-base md:text-lg break-all">
-                          {recording.callLog.phoneNumber}
+                          {recording.callLog.phone_number}
                         </CardTitle>
                         <CardDescription className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1 text-xs md:text-sm">
                           <span className="flex items-center gap-1">
@@ -226,8 +226,8 @@ export default function RecordingsPage() {
                       size="sm"
                       variant="outline"
                       onClick={() => handleDownload(
-                        recording.recordingUrl,
-                        recording.callLog.phoneNumber,
+                        recording.recording_url,
+                        recording.callLog.phone_number,
                         recording.callLog.startedAt
                       )}
                       className="w-full sm:w-auto text-xs sm:text-sm"
@@ -237,7 +237,7 @@ export default function RecordingsPage() {
                     </Button>
                     <audio
                       id={`audio-${recording.id}`}
-                      src={recording.recordingUrl.includes('.mp3') ? recording.recordingUrl : `${recording.recordingUrl}.mp3`}
+                      src={recording.recordingUrl.includes('.mp3') ? recording.recording_url : `${recording.recording_url}.mp3`}
                       className="hidden"
                       preload="none"
                     />

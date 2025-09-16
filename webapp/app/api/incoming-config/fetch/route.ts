@@ -15,21 +15,21 @@ export async function GET(req: NextRequest) {
 
     if (phoneNumber) {
       // Try to find user by phone number
-      user = await prisma.user.findFirst({
+      user = await prisma.users.findFirst({
         where: { phone: phoneNumber }
       });
     }
 
     // Fallback to default user for testing
     if (!user) {
-      user = await prisma.user.findFirst({
+      user = await prisma.users.findFirst({
         where: { email: 'user@example.com' }
       });
     }
 
     if (!user) {
       // Create default user if none exists
-      user = await prisma.user.create({
+      user = await prisma.users.create({
         data: {
           email: 'user@example.com',
           name: 'Default User',
@@ -39,18 +39,18 @@ export async function GET(req: NextRequest) {
     }
 
     // Get active incoming call configuration
-    let config = await prisma.incomingCallConfig.findFirst({
+    let config = await prisma.incoming_call_configs.findFirst({
       where: {
-        userId: user.id,
-        isActive: true
+        user_id: user.id,
+        is_active: true
       }
     });
 
     // If no config exists, create a default one
     if (!config) {
-      config = await prisma.incomingCallConfig.create({
+      config = await prisma.incoming_call_configs.create({
         data: {
-          userId: user.id,
+          user_id: user.id,
           name: 'Default Incoming Call Configuration',
           instructions: `You are a helpful AI assistant answering phone calls. Be friendly, professional, and concise.
 Your primary goal is to help the caller with their request.
@@ -79,7 +79,7 @@ Always maintain a conversational and natural tone appropriate for phone conversa
           enable_sip: true,
           enable_mcp: false,
           response_mode: 'streaming',
-          isActive: true
+          is_active: true
         }
       });
     }

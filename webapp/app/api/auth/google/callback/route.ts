@@ -50,32 +50,30 @@ export async function GET(request: NextRequest) {
     const googleUser = await response.json();
 
     // Check if user exists in database
-    let user = await prisma.user.findUnique({
+    let user = await prisma.users.findUnique({
       where: { email: googleUser.email },
     });
 
     if (!user) {
       // Create new user
-      user = await prisma.user.create({
+      user = await prisma.users.create({
         data: {
           email: googleUser.email,
           name: googleUser.name || googleUser.email.split("@")[0],
-          googleId: googleUser.id,
-          avatar: googleUser.picture,
+          avatar_url: googleUser.picture,
           credits: 10, // Give initial credits for new users
-          emailVerified: true, // Google accounts are pre-verified
+          email_verified: true, // Google accounts are pre-verified
         },
       });
     } else {
       // Update existing user with Google info
-      user = await prisma.user.update({
+      user = await prisma.users.update({
         where: { email: googleUser.email },
         data: {
-          googleId: googleUser.id,
-          avatar: googleUser.picture || user.avatar,
+          avatar_url: googleUser.picture || user.avatar_url,
           name: googleUser.name || user.name,
-          emailVerified: true,
-          lastLogin: new Date(),
+          email_verified: true,
+          last_login_at: new Date(),
         },
       });
     }
@@ -86,7 +84,7 @@ export async function GET(request: NextRequest) {
         id: user.id,
         email: user.email,
         name: user.name,
-        avatar: user.avatar,
+        avatar: user.avatar_url,
       },
       process.env.JWT_SECRET || "your-jwt-secret",
       { expiresIn: "7d" }

@@ -32,9 +32,9 @@ interface SavedConfig {
   name: string;
   description?: string;
   configuration: any;
-  usageCount: number;
+  usage_count: number;
   lastUsedAt?: string;
-  createdAt: string;
+  created_at: string;
 }
 
 interface SavedConfigsPanelProps {
@@ -243,9 +243,9 @@ const SavedConfigsPanel: React.FC<SavedConfigsPanelProps> = ({
                       <div className="flex items-center gap-3 text-xs text-gray-400">
                         <span className="flex items-center gap-1">
                           <Hash className="h-3 w-3" />
-                          Used {config.usageCount} times
+                          Used {config.usage_count} times
                         </span>
-                        {config.lastUsedAt && (
+                        {config.last_used_at && (
                           <span className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
                             {formatDistanceToNow(new Date(config.lastUsedAt), { addSuffix: true })}

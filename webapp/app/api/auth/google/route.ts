@@ -64,28 +64,26 @@ export async function GET(request: NextRequest) {
     const googleUser = await userInfoResponse.json();
 
     // Check if user exists in database
-    let user = await prisma.user.findUnique({
+    let user = await prisma.users.findUnique({
       where: { email: googleUser.email },
     });
 
     if (!user) {
       // Create new user
-      user = await prisma.user.create({
+      user = await prisma.users.create({
         data: {
           email: googleUser.email,
           name: googleUser.name,
-          googleId: googleUser.id,
-          avatar: googleUser.picture,
+          avatar_url: googleUser.picture,
           credits: 10, // Give initial credits
         },
       });
     } else {
       // Update existing user with Google info
-      user = await prisma.user.update({
+      user = await prisma.users.update({
         where: { email: googleUser.email },
         data: {
-          googleId: googleUser.id,
-          avatar: googleUser.picture,
+          avatar_url: googleUser.picture,
           name: googleUser.name,
         },
       });

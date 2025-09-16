@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { email },
     });
     
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Verify password
-    const isValid = await verifyPassword(password, user.password);
+    const isValid = user.password ? await verifyPassword(password, user.password) : false;
     
     if (!isValid) {
       return NextResponse.json(
