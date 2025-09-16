@@ -927,7 +927,7 @@ export default function CleanAIDashboard() {
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between p-3 rounded-xl bg-white/10">
                   <span className="text-sm">Model</span>
-                  <span className="text-sm">GPT-4o Realtime</span>
+                  <span className="text-sm">GPT-REALTIME</span>
                 </div>
                 <div className="flex items-center justify-between p-3 rounded-xl bg-white/10">
                   <span className="text-sm">Voice</span>
