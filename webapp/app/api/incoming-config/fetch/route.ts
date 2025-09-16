@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 
 // This endpoint is specifically for the backend to fetch incoming call configuration
 export async function GET(req: NextRequest) {

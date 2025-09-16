@@ -1,4 +1,4 @@
-import * as nodemailer from 'nodemailer';
+import nodemailer from 'nodemailer';
 import sgMail from '@sendgrid/mail';
 
 // Initialize SendGrid if API key is available
@@ -14,12 +14,12 @@ const createTransporter = () => {
   }
 
   // For development, use nodemailer with SMTP
-  if (!nodemailer.createTransporter) {
+  if (!nodemailer || !nodemailer.createTransport) {
     console.warn('Nodemailer not properly imported, email sending disabled in development');
     return null;
   }
 
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT || '587'),
     secure: false,
