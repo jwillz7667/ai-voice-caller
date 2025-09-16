@@ -51,11 +51,18 @@ interface SessionConfig {
   voice: string;
   instructions?: string;
   temperature?: number;
-  eagerness?: number;
   recordCall?: boolean;
   turn_detection?: {
-    type: string;
+    type: 'semantic_vad' | 'server_vad';
+    // For semantic_vad
+    eagerness?: 'auto' | 'low' | 'medium' | 'high';
+    // For server_vad
     silence_duration_ms?: number;
+    prefix_padding_ms?: number;
+    threshold?: number;
+    // Idle timeout (optional)
+    idle_timeout_enabled?: boolean;
+    idle_timeout_ms?: number;
   };
 }
 
@@ -98,11 +105,16 @@ export default function CleanAIDashboard() {
     voice: 'marin',
     instructions: 'You are a helpful AI assistant in a phone call. Be conversational, friendly, and helpful.',
     temperature: 0.8,
-    eagerness: 0.7,
     recordCall: true,
     turn_detection: {
       type: 'semantic_vad',
-      silence_duration_ms: 500
+      eagerness: 'auto',
+      // Server VAD defaults
+      silence_duration_ms: 500,
+      prefix_padding_ms: 300,
+      threshold: 0.5,
+      idle_timeout_enabled: false,
+      idle_timeout_ms: 15000
     }
   });
 
@@ -318,15 +330,22 @@ export default function CleanAIDashboard() {
     try {
       // Send configuration to backend via WebSocket
       if (ws && ws.readyState === WebSocket.OPEN) {
-        // Map numeric eagerness (0-1) to backend's expected values
-        let eagernessSetting: 'low' | 'auto' | 'high' = 'auto';
-        if (config.eagerness !== undefined) {
-          if (config.eagerness <= 0.33) {
-            eagernessSetting = 'low';
-          } else if (config.eagerness >= 0.67) {
-            eagernessSetting = 'high';
-          } else {
-            eagernessSetting = 'auto';
+        const turnDetection: any = {
+          type: config.turn_detection?.type || 'semantic_vad',
+          create_response: true
+        };
+
+        // Add appropriate parameters based on VAD type
+        if (config.turn_detection?.type === 'semantic_vad') {
+          turnDetection.eagerness = config.turn_detection?.eagerness || 'auto';
+        } else if (config.turn_detection?.type === 'server_vad') {
+          turnDetection.silence_duration_ms = config.turn_detection?.silence_duration_ms || 500;
+          turnDetection.prefix_padding_ms = config.turn_detection?.prefix_padding_ms || 300;
+          turnDetection.threshold = config.turn_detection?.threshold || 0.5;
+
+          // Add idle timeout if enabled
+          if (config.turn_detection?.idle_timeout_enabled) {
+            turnDetection.idle_timeout_ms = config.turn_detection?.idle_timeout_ms || 15000;
           }
         }
 
@@ -335,12 +354,7 @@ export default function CleanAIDashboard() {
           session: {
             voice: config.voice,
             instructions: config.instructions,
-            turn_detection: {
-              type: config.turn_detection?.type || 'server_vad',
-              silence_duration_ms: config.turn_detection?.silence_duration_ms,
-              create_response: true,
-              eagerness: eagernessSetting
-            },
+            turn_detection: turnDetection,
             temperature: config.temperature,
             modalities: ['text', 'audio'],
             input_audio_transcription: {
@@ -727,22 +741,139 @@ export default function CleanAIDashboard() {
                   </TabsContent>
 
                   <TabsContent value="behavior" className="space-y-4 mt-4">
+                    {/* VAD Type Selection */}
                     <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Label>Eagerness</Label>
-                        <span className="text-sm text-muted-foreground">{(config.eagerness || 0.7).toFixed(1)}</span>
-                      </div>
-                      <Slider
-                        value={[config.eagerness || 0.7]}
-                        onValueChange={([v]) => setConfig({...config, eagerness: v})}
-                        min={0}
-                        max={1}
-                        step={0.1}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        How eager the AI is to respond (0 = patient, 1 = very eager)
-                      </p>
+                      <Label>VAD Type</Label>
+                      <Select
+                        value={config.turn_detection?.type || 'semantic_vad'}
+                        onValueChange={(v: 'semantic_vad' | 'server_vad') => setConfig({
+                          ...config,
+                          turn_detection: {...config.turn_detection, type: v}
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="semantic_vad">Semantic VAD</SelectItem>
+                          <SelectItem value="server_vad">Server VAD</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
+
+                    {/* Semantic VAD Settings */}
+                    {config.turn_detection?.type === 'semantic_vad' && (
+                      <div>
+                        <Label>Eagerness</Label>
+                        <Select
+                          value={config.turn_detection?.eagerness || 'auto'}
+                          onValueChange={(v: 'auto' | 'low' | 'medium' | 'high') => setConfig({
+                            ...config,
+                            turn_detection: {...config.turn_detection, eagerness: v}
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Auto</SelectItem>
+                            <SelectItem value="low">Low</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          How eager the AI is to respond during conversation
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Server VAD Settings */}
+                    {config.turn_detection?.type === 'server_vad' && (
+                      <>
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <Label>Silence Duration</Label>
+                            <span className="text-sm text-muted-foreground">{config.turn_detection?.silence_duration_ms || 500}ms</span>
+                          </div>
+                          <Slider
+                            value={[config.turn_detection?.silence_duration_ms || 500]}
+                            onValueChange={([v]) => setConfig({
+                              ...config,
+                              turn_detection: {...config.turn_detection, silence_duration_ms: v}
+                            })}
+                            min={0}
+                            max={2000}
+                            step={50}
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <Label>Prefix Padding</Label>
+                            <span className="text-sm text-muted-foreground">{config.turn_detection?.prefix_padding_ms || 300}ms</span>
+                          </div>
+                          <Slider
+                            value={[config.turn_detection?.prefix_padding_ms || 300]}
+                            onValueChange={([v]) => setConfig({
+                              ...config,
+                              turn_detection: {...config.turn_detection, prefix_padding_ms: v}
+                            })}
+                            min={0}
+                            max={2000}
+                            step={50}
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <Label>Threshold</Label>
+                            <span className="text-sm text-muted-foreground">{(config.turn_detection?.threshold || 0.5).toFixed(2)}</span>
+                          </div>
+                          <Slider
+                            value={[config.turn_detection?.threshold || 0.5]}
+                            onValueChange={([v]) => setConfig({
+                              ...config,
+                              turn_detection: {...config.turn_detection, threshold: v}
+                            })}
+                            min={0}
+                            max={1}
+                            step={0.01}
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <Label>Idle Timeout</Label>
+                            <Switch
+                              checked={config.turn_detection?.idle_timeout_enabled || false}
+                              onCheckedChange={(checked) => setConfig({
+                                ...config,
+                                turn_detection: {...config.turn_detection, idle_timeout_enabled: checked}
+                              })}
+                            />
+                          </div>
+                          {config.turn_detection?.idle_timeout_enabled && (
+                            <div className="mt-2">
+                              <div className="flex items-center justify-between mb-2">
+                                <Label className="text-sm">Timeout Duration</Label>
+                                <span className="text-sm text-muted-foreground">{config.turn_detection?.idle_timeout_ms || 15000}ms</span>
+                              </div>
+                              <Slider
+                                value={[config.turn_detection?.idle_timeout_ms || 15000]}
+                                onValueChange={([v]) => setConfig({
+                                  ...config,
+                                  turn_detection: {...config.turn_detection, idle_timeout_ms: v}
+                                })}
+                                min={5000}
+                                max={30000}
+                                step={1000}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
 
                     <div>
                       <div className="flex items-center justify-between mb-2">
@@ -753,26 +884,12 @@ export default function CleanAIDashboard() {
                         value={[config.temperature || 0.8]}
                         onValueChange={([v]) => setConfig({...config, temperature: v})}
                         min={0}
-                        max={2}
+                        max={1}
                         step={0.1}
                       />
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Label>Silence Duration (ms)</Label>
-                        <span className="text-sm text-muted-foreground">{config.turn_detection?.silence_duration_ms || 500}ms</span>
-                      </div>
-                      <Slider
-                        value={[config.turn_detection?.silence_duration_ms || 500]}
-                        onValueChange={([v]) => setConfig({
-                          ...config,
-                          turn_detection: {...config.turn_detection, silence_duration_ms: v}
-                        })}
-                        min={200}
-                        max={2000}
-                        step={100}
-                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Response creativity (0 = focused, 1 = creative)
+                      </p>
                     </div>
                   </TabsContent>
 
@@ -852,9 +969,15 @@ export default function CleanAIDashboard() {
                   <span className="text-sm capitalize">{config.voice}</span>
                 </div>
                 <div className="flex items-center justify-between p-3 rounded-xl bg-white/10">
-                  <span className="text-sm">Eagerness</span>
-                  <span className="text-sm">{((config.eagerness || 0.7) * 100).toFixed(0)}%</span>
+                  <span className="text-sm">VAD Type</span>
+                  <span className="text-sm capitalize">{config.turn_detection?.type === 'server_vad' ? 'Server' : 'Semantic'}</span>
                 </div>
+                {config.turn_detection?.type === 'semantic_vad' && (
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-white/10">
+                    <span className="text-sm">Eagerness</span>
+                    <span className="text-sm capitalize">{config.turn_detection?.eagerness || 'auto'}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between p-3 rounded-xl bg-white/10">
                   <span className="text-sm">Recording</span>
                   <Badge className={config.recordCall ? "bg-green-500/20" : "bg-gray-500/20"}>
