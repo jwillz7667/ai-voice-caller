@@ -13,8 +13,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get backend URL from environment
-    const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_WEBSOCKET_URL?.replace('wss://', 'https://').replace('ws://', 'http://') || "http://localhost:8081";
+    // Get backend URL from environment - use the websocket server URL
+    const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:8081';
+    const backendUrl = wsUrl.replace('wss://', 'https://').replace('ws://', 'http://');
 
     // Forward the request to the backend which handles all Twilio logic
     const response = await fetch(`${backendUrl}/end-call`, {

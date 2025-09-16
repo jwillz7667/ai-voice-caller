@@ -14,8 +14,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get backend URL from environment
-    const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_WEBSOCKET_URL?.replace('wss://', 'https://').replace('ws://', 'http://') || "http://localhost:8081";
+    // Get backend URL from environment - use the websocket server URL
+    const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:8081';
+    const backendUrl = wsUrl.replace('wss://', 'https://').replace('ws://', 'http://');
 
     console.log('[make-call] Using backend URL:', backendUrl);
     console.log('[make-call] Phone number:', phoneNumber);
@@ -32,9 +33,16 @@ export async function POST(request: NextRequest) {
       }),
     });
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch (e) {
+      console.error('[make-call] Failed to parse backend response:', e);
+      data = { error: 'Invalid response from backend' };
+    }
 
     if (!response.ok) {
+      console.error('[make-call] Backend returned error:', response.status, data);
       return NextResponse.json(
         { error: data.error || "Failed to initiate call" },
         { status: response.status }
