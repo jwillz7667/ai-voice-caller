@@ -289,12 +289,52 @@ export default function CleanAIDashboard() {
     }, 100);
   };
 
+  // Format phone number for display (strips +1 for input field)
+  const formatPhoneForDisplay = (phone: string) => {
+    // Remove all non-digit characters
+    const cleaned = phone.replace(/\D/g, '');
+    // Remove leading 1 if it's 11 digits
+    if (cleaned.length === 11 && cleaned.startsWith('1')) {
+      return cleaned.slice(1);
+    }
+    return cleaned;
+  };
+
+  // Format phone number for calling (adds +1 if needed)
+  const formatPhoneForCalling = (phone: string) => {
+    // Remove all non-digit characters
+    const cleaned = phone.replace(/\D/g, '');
+    // Add +1 if it's 10 digits
+    if (cleaned.length === 10) {
+      return '+1' + cleaned;
+    }
+    // If it already has country code
+    if (cleaned.length === 11 && cleaned.startsWith('1')) {
+      return '+' + cleaned;
+    }
+    // Return with + if it starts with other country code
+    if (cleaned.length > 10) {
+      return '+' + cleaned;
+    }
+    return cleaned;
+  };
+
+  // Handle phone input change
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Only allow digits
+    const digitsOnly = value.replace(/\D/g, '');
+    // Limit to 10 digits for US numbers
+    const limited = digitsOnly.slice(0, 10);
+    setPhoneNumber(limited);
+  };
+
   // Start call using backend API
   const handleStartCall = async () => {
-    if (!phoneNumber) {
+    if (!phoneNumber || phoneNumber.length !== 10) {
       toast({
         title: 'Error',
-        description: 'Please enter a phone number',
+        description: 'Please enter a 10-digit phone number',
         variant: 'destructive'
       });
       return;
@@ -302,6 +342,9 @@ export default function CleanAIDashboard() {
 
     setIsLoading(true);
     try {
+      // Format phone number with +1
+      const formattedPhone = formatPhoneForCalling(phoneNumber);
+
       // Send configuration to backend via WebSocket
       if (ws && ws.readyState === WebSocket.OPEN) {
         const turnDetection: any = {
@@ -344,7 +387,7 @@ export default function CleanAIDashboard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phoneNumber,
+          phoneNumber: formattedPhone,
           recordCall: config.recordCall
         })
       });
@@ -544,13 +587,19 @@ export default function CleanAIDashboard() {
               <CardContent className="space-y-4">
                 <div>
                   <Label>Phone Number</Label>
-                  <Input
-                    type="tel"
-                    placeholder="+1 (555) 123-4567"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    disabled={isCallActive}
-                  />
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">+1</div>
+                    <Input
+                      type="tel"
+                      placeholder="(555) 123-4567"
+                      value={phoneNumber}
+                      onChange={handlePhoneChange}
+                      disabled={isCallActive}
+                      className="pl-10"
+                      maxLength={10}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Enter 10-digit US phone number</p>
                 </div>
 
                 {isCallActive && (
