@@ -15,10 +15,10 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/use-toast';
 import {
-  Save, Settings, Phone, Mic, Brain, Code, Database,
-  AlertCircle, CheckCircle2, Volume2, Zap, Shield, Globe,
-  ChevronLeft, RefreshCw, Copy, Download, Upload, Image,
-  PhoneCall, Server, Sparkles, Clock
+  Save, Settings, Phone, Code,
+  AlertCircle, CheckCircle2, Shield,
+  ChevronLeft, RefreshCw, Download, Upload, Image,
+  PhoneCall, Server, Sparkles
 } from 'lucide-react';
 
 interface IncomingCallConfig {

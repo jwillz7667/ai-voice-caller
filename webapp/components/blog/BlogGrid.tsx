@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Calendar, Clock, ArrowRight, User, Tag } from "lucide-react";
+import { Calendar, Clock, ArrowRight, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -86,7 +86,7 @@ export default function BlogGrid() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {/* Featured Post */}
-          {blogPosts.filter(post => post.featured).map((post, index) => (
+          {blogPosts.filter(post => post.featured).map((post) => (
             <motion.div
               key={post.id}
               initial={{ opacity: 0, y: 30 }}
@@ -155,13 +155,13 @@ export default function BlogGrid() {
 
           {/* Regular Posts Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {blogPosts.filter(post => !post.featured).map((post, index) => (
+            {blogPosts.filter(post => !post.featured).map((post) => (
               <motion.article
                 key={post.id}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
+                transition={{ duration: 0.5 }}
                 whileHover={{ y: -5 }}
                 className="group cursor-pointer"
               >

@@ -158,7 +158,7 @@ async function main() {
     const savedConfig = await prisma.savedConfiguration.create({
       data: {
         ...config,
-        userId: users[0].id,
+        userId: users[0]?.id || '',
         tags: [config.category!, "template", "verified"]
       }
     });

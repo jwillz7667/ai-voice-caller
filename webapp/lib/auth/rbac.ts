@@ -1,6 +1,5 @@
 import { UserRole } from "@prisma/client";
-import { getServerSession } from "next-auth";
-import { authOptions } from "./auth-options";
+import { auth } from "../auth";
 import { NextResponse } from "next/server";
 
 // Define role hierarchy
@@ -94,7 +93,7 @@ export async function requirePermission(
   permission: string,
   context?: { ownerId?: string }
 ) {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
 
   if (!session?.user) {
     return NextResponse.json(
@@ -125,7 +124,7 @@ export async function requirePermission(
 
 // Middleware to check minimum role
 export async function requireRole(minimumRole: UserRole) {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
 
   if (!session?.user) {
     return NextResponse.json(

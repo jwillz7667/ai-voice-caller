@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BookOpen, TrendingUp, Search } from "lucide-react";
+import { BookOpen, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 export default function BlogHero() {

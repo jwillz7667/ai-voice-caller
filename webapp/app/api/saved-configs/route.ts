@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
 // GET saved configurations
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // Get auth token from cookie
     const cookieStore = cookies();

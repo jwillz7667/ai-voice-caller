@@ -11,7 +11,7 @@ import { Home } from "lucide-react";
 
 export default function LogsPage() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [isConnected, setIsConnected] = useState(false);
+  const [_isConnected, _setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "disconnected" | "error">("disconnected");
   const [error, setError] = useState<string | null>(null);
   
@@ -32,7 +32,7 @@ export default function LogsPage() {
       wsConnection = ws;
       
       ws.onopen = () => {
-        setIsConnected(true);
+        _setIsConnected(true);
         setConnectionStatus("connected");
         
         // Add connection event to logs
@@ -65,7 +65,7 @@ export default function LogsPage() {
         }
       };
       
-      ws.onerror = (error) => {
+      ws.onerror = (_error) => {
         setConnectionStatus("error");
         setError("Failed to connect to WebSocket server");
         
@@ -77,7 +77,7 @@ export default function LogsPage() {
       };
       
       ws.onclose = () => {
-        setIsConnected(false);
+        _setIsConnected(false);
         setConnectionStatus("disconnected");
         
         // Log connection closed

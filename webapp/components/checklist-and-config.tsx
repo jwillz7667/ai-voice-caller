@@ -23,8 +23,8 @@ import {
 export default function ChecklistAndConfig({
   ready,
   setReady,
-  selectedPhoneNumber,
-  setSelectedPhoneNumber,
+  selectedPhoneNumber: _selectedPhoneNumber,
+  setSelectedPhoneNumber: _setSelectedPhoneNumber,
 }: {
   ready: boolean;
   setReady: (val: boolean) => void;
@@ -71,7 +71,7 @@ export default function ChecklistAndConfig({
             numbersData[0];
           setCurrentNumberSid(selected.sid);
           setCurrentVoiceUrl(selected.voiceUrl || "");
-          setSelectedPhoneNumber(selected.friendlyName || "");
+          _setSelectedPhoneNumber(selected.friendlyName || "");
         }
 
         // 3. Check local server & public URL
@@ -178,7 +178,7 @@ export default function ChecklistAndConfig({
                   setCurrentNumberSid(value);
                   const selected = phoneNumbers.find((p) => p.sid === value);
                   if (selected) {
-                    setSelectedPhoneNumber(selected.friendlyName || "");
+                    _setSelectedPhoneNumber(selected.friendlyName || "");
                     setCurrentVoiceUrl(selected.voiceUrl || "");
                   }
                 }}

@@ -9,8 +9,7 @@ import {
   Users,
   BookOpen,
   Lightbulb,
-  Megaphone,
-  FileText
+  Megaphone
 } from "lucide-react";
 
 const categories = [

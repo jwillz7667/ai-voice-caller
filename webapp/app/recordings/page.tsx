@@ -84,7 +84,7 @@ export default function RecordingsPage() {
     });
   };
 
-  const handlePlay = (recordingId: string, recordingUrl: string) => {
+  const handlePlay = (recordingId: string, _recordingUrl: string) => {
     if (playingId === recordingId) {
       // Stop playing
       const audio = document.getElementById(`audio-${recordingId}`) as HTMLAudioElement;

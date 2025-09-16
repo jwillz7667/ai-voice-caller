@@ -17,16 +17,17 @@ export async function POST(request: NextRequest) {
       CallStatus,
       CallDuration,
       Direction,
-      From,
-      To,
+      _From,
+      _To,
     } = body;
 
-    console.log("Call status update:", {
+    // Prepare log data without console logging
+    const _logData = {
       CallSid,
       CallStatus,
       CallDuration,
       Direction,
-    });
+    };
 
     // Update call log if it exists
     if (CallSid) {

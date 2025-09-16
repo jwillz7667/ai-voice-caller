@@ -69,7 +69,7 @@ export default function CleanAIDashboard() {
 
   // WebSocket connection state
   const [ws, setWs] = useState<WebSocket | null>(null);
-  const [logsWs, setLogsWs] = useState<WebSocket | null>(null);
+  const [_logsWs, _setLogsWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
   // Call state
@@ -159,14 +159,14 @@ export default function CleanAIDashboard() {
           } else {
             handleWebSocketMessage(data);
           }
-        } catch (error) {
+        } catch (_error) {
           // Handle binary or non-JSON messages
           console.log('Received non-JSON message:', event.data);
         }
       };
 
-      logsWebsocket.onerror = (error) => {
-        console.error('WebSocket error:', error);
+      logsWebsocket.onerror = (_error) => {
+        console.error('WebSocket error:', _error);
         addLog('warning', 'Monitoring connection error - calls will still work');
         // Don't set isConnected to false on error - calls can still work via API
       };
@@ -178,13 +178,13 @@ export default function CleanAIDashboard() {
       };
 
       setWs(logsWebsocket);
-      setLogsWs(logsWebsocket);
+      _setLogsWs(logsWebsocket);
 
       return () => {
         logsWebsocket.close();
       };
-    } catch (error) {
-      console.error('Failed to connect to monitoring WebSocket:', error);
+    } catch (_error) {
+      console.error('Failed to connect to monitoring WebSocket:', _error);
       addLog('info', 'Monitoring unavailable - calls will still work');
     }
   }, [user]);
@@ -300,8 +300,8 @@ export default function CleanAIDashboard() {
       } else {
         console.error('Failed to fetch call history');
       }
-    } catch (error) {
-      console.error('Error fetching call history:', error);
+    } catch (_error) {
+      console.error('Error fetching call history:', _error);
     } finally {
       setLoadingHistory(false);
     }
@@ -318,8 +318,8 @@ export default function CleanAIDashboard() {
       } else {
         console.error('Failed to fetch saved configs');
       }
-    } catch (error) {
-      console.error('Error fetching saved configs:', error);
+    } catch (_error) {
+      console.error('Error fetching saved configs:', _error);
     } finally {
       setLoadingConfigs(false);
     }
@@ -338,8 +338,8 @@ export default function CleanAIDashboard() {
         // Update last used
         await fetch(`/api/saved-configs/${configId}/use`, { method: 'POST' });
       }
-    } catch (error) {
-      console.error('Error loading config:', error);
+    } catch (_error) {
+      console.error('Error loading config:', _error);
       toast({
         title: "Error",
         description: "Failed to load configuration",
@@ -365,8 +365,8 @@ export default function CleanAIDashboard() {
       } else {
         throw new Error('Failed to save');
       }
-    } catch (error) {
-      console.error('Error saving config:', error);
+    } catch (_error) {
+      console.error('Error saving config:', _error);
       toast({
         title: "Error",
         description: "Failed to save configuration",
@@ -383,16 +383,6 @@ export default function CleanAIDashboard() {
     }
   }, [user]);
 
-  // Format phone number for display (strips +1 for input field)
-  const formatPhoneForDisplay = (phone: string) => {
-    // Remove all non-digit characters
-    const cleaned = phone.replace(/\D/g, '');
-    // Remove leading 1 if it's 11 digits
-    if (cleaned.length === 11 && cleaned.startsWith('1')) {
-      return cleaned.slice(1);
-    }
-    return cleaned;
-  };
 
   // Format phone number for calling (adds +1 if needed)
   const formatPhoneForCalling = (phone: string) => {
@@ -495,12 +485,12 @@ export default function CleanAIDashboard() {
       setIsCallActive(true);
       addLog('success', `Call initiated: ${data.callSid}`);
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error starting call:', error);
-      addLog('error', error.message);
+      addLog('error', (error as Error).message);
       toast({
         title: 'Failed to start call',
-        description: error.message,
+        description: (error as Error).message,
         variant: 'destructive'
       });
     } finally {
@@ -525,9 +515,9 @@ export default function CleanAIDashboard() {
         setCallDuration(0);
         addLog('info', 'Call ended');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error ending call:', error);
-      addLog('error', error.message);
+      addLog('error', (error as Error).message);
     }
   };
 
@@ -591,7 +581,7 @@ export default function CleanAIDashboard() {
           description: 'Your settings have been saved'
         });
       }
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'Save Failed',
         description: 'Failed to save configuration',
@@ -600,20 +590,6 @@ export default function CleanAIDashboard() {
     }
   };
 
-  // Load configuration from backend
-  const loadConfiguration = async () => {
-    try {
-      const response = await fetch('/api/session-config');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.config) {
-          setConfig(data.config);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading configuration:', error);
-    }
-  };
 
   if (loading) {
     return (
@@ -839,7 +815,7 @@ export default function CleanAIDashboard() {
                           value={config.turn_detection?.eagerness || 'auto'}
                           onValueChange={(v: 'auto' | 'low' | 'medium' | 'high') => setConfig({
                             ...config,
-                            turn_detection: {...config.turn_detection, eagerness: v}
+                            turn_detection: {...config.turn_detection!, type: config.turn_detection?.type || 'semantic_vad', eagerness: v}
                           })}
                         >
                           <SelectTrigger>
@@ -870,7 +846,7 @@ export default function CleanAIDashboard() {
                             value={[config.turn_detection?.silence_duration_ms || 500]}
                             onValueChange={([v]) => setConfig({
                               ...config,
-                              turn_detection: {...config.turn_detection, silence_duration_ms: v}
+                              turn_detection: {...config.turn_detection!, type: config.turn_detection?.type || 'server_vad', silence_duration_ms: v}
                             })}
                             min={0}
                             max={2000}
@@ -887,7 +863,7 @@ export default function CleanAIDashboard() {
                             value={[config.turn_detection?.prefix_padding_ms || 300]}
                             onValueChange={([v]) => setConfig({
                               ...config,
-                              turn_detection: {...config.turn_detection, prefix_padding_ms: v}
+                              turn_detection: {...config.turn_detection!, type: config.turn_detection?.type || 'server_vad', prefix_padding_ms: v}
                             })}
                             min={0}
                             max={2000}
@@ -904,7 +880,7 @@ export default function CleanAIDashboard() {
                             value={[config.turn_detection?.threshold || 0.5]}
                             onValueChange={([v]) => setConfig({
                               ...config,
-                              turn_detection: {...config.turn_detection, threshold: v}
+                              turn_detection: {...config.turn_detection!, type: config.turn_detection?.type || 'server_vad', threshold: v}
                             })}
                             min={0}
                             max={1}
@@ -919,7 +895,7 @@ export default function CleanAIDashboard() {
                               checked={config.turn_detection?.idle_timeout_enabled || false}
                               onCheckedChange={(checked) => setConfig({
                                 ...config,
-                                turn_detection: {...config.turn_detection, idle_timeout_enabled: checked}
+                                turn_detection: {...config.turn_detection!, type: config.turn_detection?.type || 'server_vad', idle_timeout_enabled: checked}
                               })}
                             />
                           </div>
@@ -933,7 +909,7 @@ export default function CleanAIDashboard() {
                                 value={[config.turn_detection?.idle_timeout_ms || 15000]}
                                 onValueChange={([v]) => setConfig({
                                   ...config,
-                                  turn_detection: {...config.turn_detection, idle_timeout_ms: v}
+                                  turn_detection: {...config.turn_detection!, type: config.turn_detection?.type || 'server_vad', idle_timeout_ms: v}
                                 })}
                                 min={5000}
                                 max={30000}
@@ -1134,7 +1110,7 @@ export default function CleanAIDashboard() {
                               {call.direction}
                             </Badge>
                             <Badge variant={
-                              call.status === 'COMPLETED' ? 'success' :
+                              call.status === 'COMPLETED' ? 'default' :
                               call.status === 'FAILED' ? 'destructive' :
                               'outline'
                             }>
@@ -1251,7 +1227,7 @@ export default function CleanAIDashboard() {
                                       title: "Configuration Deleted",
                                       description: `Deleted "${config.name}"`
                                     });
-                                  } catch (error) {
+                                  } catch (_error) {
                                     toast({
                                       title: "Error",
                                       description: "Failed to delete configuration",

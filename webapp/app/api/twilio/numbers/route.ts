@@ -19,7 +19,7 @@ export async function GET() {
   );
 }
 
-export async function POST(req: Request) {
+export async function POST(_req: Request) {
   // Static exports don't support server-side API routes with dynamic behavior
   // Return a static error response for the build process
   return new NextResponse(

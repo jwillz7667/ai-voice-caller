@@ -11,7 +11,7 @@ const oauth2Client = new OAuth2Client(
   process.env.GOOGLE_REDIRECT_URI || "http://localhost:3000/api/auth/google/callback"
 );
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     // Generate the Google OAuth URL
     const scopes = [
@@ -26,10 +26,10 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ authUrl });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Google OAuth error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to initialize Google OAuth" },
+      { error: (error as Error).message || "Failed to initialize Google OAuth" },
       { status: 500 }
     );
   }
@@ -112,10 +112,10 @@ export async function GET(request: NextRequest) {
     });
 
     return response;
-  } catch (error: any) {
+  } catch (error) {
     console.error("Google OAuth callback error:", error);
     return NextResponse.redirect(
-      new URL(`/auth/signin?error=${encodeURIComponent(error.message)}`, request.url)
+      new URL(`/auth/signin?error=${encodeURIComponent((error as Error).message)}`, request.url)
     );
   }
 }

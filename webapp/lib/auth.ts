@@ -3,6 +3,9 @@ import bcrypt from 'bcryptjs';
 import { prisma } from './prisma';
 import { User } from '@prisma/client';
 
+// Re-export NextAuth v5 utilities
+export { auth, signIn, signOut, handlers } from './auth/index';
+
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const JWT_EXPIRES_IN = '7d';
 
@@ -34,8 +37,8 @@ export async function createSession(userId: string, email: string): Promise<stri
   await prisma.session.create({
     data: {
       userId,
-      token,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      sessionToken: token,
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     },
   });
   
@@ -45,18 +48,18 @@ export async function createSession(userId: string, email: string): Promise<stri
 export async function validateSession(token: string): Promise<User | null> {
   try {
     // Verify JWT token
-    const payload = verifyToken(token);
-    
+    verifyToken(token);
+
     // Check if session exists in database
     const session = await prisma.session.findUnique({
-      where: { token },
+      where: { sessionToken: token },
       include: { user: true },
     });
-    
-    if (!session || session.expiresAt < new Date()) {
+
+    if (!session || session.expires < new Date()) {
       return null;
     }
-    
+
     return session.user;
   } catch {
     return null;
@@ -65,7 +68,7 @@ export async function validateSession(token: string): Promise<User | null> {
 
 export async function deleteSession(token: string): Promise<void> {
   await prisma.session.delete({
-    where: { token },
+    where: { sessionToken: token },
   }).catch(() => {
     // Ignore if session doesn't exist
   });
@@ -74,7 +77,7 @@ export async function deleteSession(token: string): Promise<void> {
 export async function cleanupExpiredSessions(): Promise<void> {
   await prisma.session.deleteMany({
     where: {
-      expiresAt: {
+      expires: {
         lt: new Date(),
       },
     },

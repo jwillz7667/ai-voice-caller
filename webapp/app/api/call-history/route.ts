@@ -20,9 +20,9 @@ export async function GET(request: NextRequest) {
     // Verify token
     let userId: string;
     try {
-      const decoded = jwt.verify(token.value, JWT_SECRET) as any;
+      const decoded = jwt.verify(token.value, JWT_SECRET) as { userId: string };
       userId = decoded.userId;
-    } catch (error) {
+    } catch (_error) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       limit,
       offset
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error fetching call history:", error);
     return NextResponse.json(
       { error: error.message || "Failed to fetch call history" },

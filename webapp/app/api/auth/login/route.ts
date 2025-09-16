@@ -5,12 +5,9 @@ import { verifyPassword, createSession } from '@/lib/auth';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-  console.log('Login attempt - DATABASE_URL:', process.env.DATABASE_URL ? 'Set' : 'Not set');
-  
   try {
     const { email, password } = await request.json();
-    console.log('Login attempt for email:', email);
-    
+
     // Validate input
     if (!email || !password) {
       return NextResponse.json(
@@ -18,13 +15,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     // Find user
-    console.log('Looking up user in database...');
     const user = await prisma.user.findUnique({
       where: { email },
     });
-    console.log('User lookup result:', user ? 'Found' : 'Not found');
     
     if (!user) {
       return NextResponse.json(

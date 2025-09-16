@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/auth-options";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
 import { createAuditLog } from "@/lib/audit";
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
 
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -44,7 +43,7 @@ export async function GET(req: NextRequest) {
     });
 
     // Generate QR code
-    const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url!);
+    const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url as string);
 
     // Store secret temporarily (you might want to use Redis for this)
     // For now, we'll store it in the database but not enable 2FA yet
@@ -72,7 +71,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
 
     if (!session?.user?.id) {
       return NextResponse.json(

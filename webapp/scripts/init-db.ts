@@ -32,12 +32,14 @@ async function main() {
       {
         userId: demoUser.id,
         amount: 1000,
+        balance: 1000,
         transactionType: 'BONUS',
         description: 'Welcome bonus',
       },
       {
         userId: demoUser.id,
         amount: -10,
+        balance: 990,
         transactionType: 'USAGE',
         description: 'Test call - 10 minutes',
       },

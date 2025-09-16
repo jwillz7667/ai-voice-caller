@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(req: NextRequest) {
+export function middleware(_req: NextRequest) {
   // Since auth is handled client-side with auth-context,
   // we'll let the client handle redirects for now
   // This can be enhanced later with server-side session checks

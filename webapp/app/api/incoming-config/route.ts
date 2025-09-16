@@ -15,7 +15,7 @@ async function getUserFromCookie() {
   });
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     // Get user from cookie or create a default one for testing
     let user = await getUserFromCookie();
