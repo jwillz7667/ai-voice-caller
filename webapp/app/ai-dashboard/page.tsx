@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
+import CleanAIDashboard from "./clean-dashboard";
 
 export default function AIDashboardPage() {
-  // Redirect to the main dashboard at root
-  redirect("/");
+  return <CleanAIDashboard />;
 }
