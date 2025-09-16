@@ -9,31 +9,15 @@ import {
   PhoneOff,
   Mic,
   MicOff,
-  Settings,
-  Clock,
   CreditCard,
-  Activity,
-  MessageSquare,
-  TrendingUp,
-  FileAudio,
-  Zap,
-  Bot,
-  Sparkles,
-  ChevronRight,
-  ArrowUpRight,
-  Play,
-  Download,
   Save,
-  X,
   Wifi,
   WifiOff,
-  Brain,
   AlertCircle,
   Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -136,16 +120,6 @@ export default function CleanAIDashboard() {
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
-  // Stats for display
-  const [stats] = useState({
-    totalCalls: 1247,
-    totalMinutes: 8392,
-    successRate: 96.5,
-    creditsRemaining: user?.credits || 2766,
-    creditsUsed: 1234,
-    avgCallDuration: "4:23",
-    dailyGrowth: 12.5,
-  });
 
   // Authentication check
   useEffect(() => {
@@ -560,64 +534,6 @@ export default function CleanAIDashboard() {
 
       {/* Main Content */}
       <main className="container mx-auto px-6 py-8">
-        {/* Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="border-0 shadow-xl bg-white dark:bg-slate-900">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Total Calls</p>
-                  <p className="text-3xl font-bold">{stats.totalCalls.toLocaleString()}</p>
-                  <div className="flex items-center space-x-1">
-                    <ArrowUpRight className="w-4 h-4 text-green-500" />
-                    <span className="text-sm text-green-600 dark:text-green-400">+{stats.dailyGrowth}%</span>
-                  </div>
-                </div>
-                <Phone className="w-8 h-8 text-blue-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-xl bg-white dark:bg-slate-900">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Minutes Used</p>
-                  <p className="text-3xl font-bold">{stats.totalMinutes.toLocaleString()}</p>
-                  <p className="text-sm text-muted-foreground">Avg: {stats.avgCallDuration}</p>
-                </div>
-                <Clock className="w-8 h-8 text-purple-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-xl bg-white dark:bg-slate-900">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Success Rate</p>
-                  <p className="text-3xl font-bold">{stats.successRate}%</p>
-                  <Progress value={stats.successRate} className="h-2" />
-                </div>
-                <Activity className="w-8 h-8 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-xl bg-white dark:bg-slate-900">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Credits Left</p>
-                  <p className="text-3xl font-bold">{stats.creditsRemaining.toLocaleString()}</p>
-                  <p className="text-sm text-amber-600">{stats.creditsUsed} used</p>
-                </div>
-                <CreditCard className="w-8 h-8 text-amber-600" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Call Control */}
           <div className="lg:col-span-1 space-y-6">
