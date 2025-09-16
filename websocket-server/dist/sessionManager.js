@@ -115,7 +115,7 @@ function handleCallConnection(ws, openAIApiKey) {
         session.openAIApiKey = openAIApiKey;
         // Fetch incoming call configuration from the webapp
         try {
-            const webappUrl = process.env.WEBAPP_URL || 'http://localhost:3000';
+            const webappUrl = process.env.WEBAPP_URL || 'https://verbio.app';
             const response = yield fetch(`${webappUrl}/api/incoming-config/fetch`);
             if (response.ok) {
                 const data = yield response.json();
@@ -490,7 +490,7 @@ function tryConnectModel() {
         },
     });
     session.modelConn.on("open", () => {
-        var _a, _b, _c;
+        var _a;
         console.log("Connected to OpenAI Realtime API successfully");
         // Extract saved configuration and ensure it's properly typed
         const savedConfig = session.saved_config || {};
@@ -498,36 +498,29 @@ function tryConnectModel() {
         // Build clean session config with only valid OpenAI fields
         const sessionConfig = {
             modalities: savedConfig.modalities || ["text", "audio"],
-            // Enhanced turn detection with semantic_vad support
-            turn_detection: savedConfig.turn_detection || {
-                type: "semantic_vad", // Default to new semantic VAD
+            // Turn detection - ensure we only send valid fields per API spec
+            turn_detection: savedConfig.turn_detection ? Object.assign(Object.assign({ type: savedConfig.turn_detection.type }, (savedConfig.turn_detection.type === 'server_vad' ? {
+                threshold: savedConfig.turn_detection.threshold || 0.5,
+                prefix_padding_ms: savedConfig.turn_detection.prefix_padding_ms || 300,
+                silence_duration_ms: savedConfig.turn_detection.silence_duration_ms || 500
+            } : {})), (savedConfig.turn_detection.type === 'semantic_vad' ? {
+                eagerness: savedConfig.turn_detection.eagerness || 'auto'
+            } : {})) : {
+                type: "server_vad", // Default to server_vad which is more stable
                 threshold: 0.5,
                 prefix_padding_ms: 300,
-                silence_duration_ms: 500,
-                create_response: true,
-                interrupt_response: true,
-                eagerness: "auto"
+                silence_duration_ms: 500
             },
-            // Support dynamic audio formats from frontend
+            // Audio formats - ensure we use correct format names
             input_audio_format: savedConfig.input_audio_format || "g711_ulaw",
             output_audio_format: savedConfig.output_audio_format || "g711_ulaw",
-            voice: ((_a = savedConfig === null || savedConfig === void 0 ? void 0 : savedConfig.audio) === null || _a === void 0 ? void 0 : _a.voice) || savedConfig.voice || "marin", // Default to new Marin voice
+            // Voice selection - use a known working voice
+            voice: savedConfig.voice || "alloy", // Use alloy as default (known to work)
         };
-        // Ensure semantic_vad has proper configuration
-        if (((_b = sessionConfig.turn_detection) === null || _b === void 0 ? void 0 : _b.type) === 'semantic_vad') {
-            // Set defaults for semantic_vad if not provided
-            if (sessionConfig.turn_detection.create_response === undefined) {
-                sessionConfig.turn_detection.create_response = true;
-            }
-            if (sessionConfig.turn_detection.interrupt_response === undefined) {
-                sessionConfig.turn_detection.interrupt_response = true;
-            }
-            if (sessionConfig.turn_detection.eagerness === undefined) {
-                sessionConfig.turn_detection.eagerness = 'auto';
-            }
-        }
+        // Remove any invalid fields that were accidentally added
+        // The OpenAI Realtime API doesn't support create_response or interrupt_response fields
         // Store VAD mode for event handling logic
-        session.vadMode = ((_c = sessionConfig.turn_detection) === null || _c === void 0 ? void 0 : _c.type) || 'server_vad';
+        session.vadMode = ((_a = sessionConfig.turn_detection) === null || _a === void 0 ? void 0 : _a.type) || 'server_vad';
         // Only add optional fields if they're defined
         if (savedConfig.instructions) {
             sessionConfig.instructions = savedConfig.instructions;
@@ -576,10 +569,23 @@ function tryConnectModel() {
     session.modelConn.on("message", handleModelMessage);
     session.modelConn.on("error", (error) => {
         console.error("OpenAI WebSocket error:", error);
+        console.error("Error details:", JSON.stringify(error, null, 2));
+        console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace');
         closeModel();
     });
     session.modelConn.on("close", (code, reason) => {
+        var _a;
         console.log("OpenAI WebSocket closed. Code:", code, "Reason:", reason === null || reason === void 0 ? void 0 : reason.toString());
+        console.log("Close code details:");
+        console.log("  1005: No status code present (usually means auth or protocol error)");
+        console.log("  1006: Abnormal closure (no close frame received)");
+        console.log("  1008: Policy violation");
+        console.log("  1011: Internal server error");
+        if (code === 1005) {
+            console.error("Code 1005 likely indicates: Authentication failed, invalid API key, or model name issue");
+            console.error("Current model URL:", MODEL_URL);
+            console.error("API Key (first 10 chars):", (_a = session.openAIApiKey) === null || _a === void 0 ? void 0 : _a.substring(0, 10));
+        }
         closeModel();
     });
     // Keep-alive pings to prevent idle disconnects

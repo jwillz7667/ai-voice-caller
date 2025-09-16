@@ -292,7 +292,7 @@ app.all("/call-status", express.urlencoded({ extended: false }), async (req, res
     
     // Forward to webapp for database updates
     try {
-      const webappUrl = process.env.WEBAPP_URL || 'http://localhost:3000';
+      const webappUrl = process.env.WEBAPP_URL || 'https://verbio.app';
       await fetch(`${webappUrl}/api/twilio/call-status`, {
         method: 'POST',
         headers: {
@@ -333,7 +333,7 @@ app.all("/recording-status", express.urlencoded({ extended: false }), async (req
       
       // Store recording info in database via webhook to webapp
       try {
-        const webappUrl = process.env.WEBAPP_URL || 'http://localhost:3000';
+        const webappUrl = process.env.WEBAPP_URL || 'https://verbio.app';
         await fetch(`${webappUrl}/api/recordings/webhook`, {
           method: 'POST',
           headers: {

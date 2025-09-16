@@ -84,6 +84,12 @@ export default function CleanAIDashboard() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Call history and saved configs
+  const [callHistory, setCallHistory] = useState<any[]>([]);
+  const [savedConfigs, setSavedConfigs] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingConfigs, setLoadingConfigs] = useState(false);
+
   // Configuration state (for UI display only - backend handles actual config)
   const [config, setConfig] = useState<SessionConfig>({
     voice: 'marin',
@@ -282,6 +288,100 @@ export default function CleanAIDashboard() {
       logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
   };
+
+  // Fetch call history
+  const fetchCallHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const response = await fetch('/api/call-history');
+      if (response.ok) {
+        const data = await response.json();
+        setCallHistory(data.callLogs || []);
+      } else {
+        console.error('Failed to fetch call history');
+      }
+    } catch (error) {
+      console.error('Error fetching call history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // Fetch saved configurations
+  const fetchSavedConfigs = async () => {
+    setLoadingConfigs(true);
+    try {
+      const response = await fetch('/api/saved-configs');
+      if (response.ok) {
+        const configs = await response.json();
+        setSavedConfigs(configs || []);
+      } else {
+        console.error('Failed to fetch saved configs');
+      }
+    } catch (error) {
+      console.error('Error fetching saved configs:', error);
+    } finally {
+      setLoadingConfigs(false);
+    }
+  };
+
+  // Load saved config
+  const loadSavedConfig = async (configId: string) => {
+    try {
+      const savedConfig = savedConfigs.find(c => c.id === configId);
+      if (savedConfig) {
+        setConfig(savedConfig.configuration);
+        toast({
+          title: "Configuration Loaded",
+          description: `Loaded "${savedConfig.name}" configuration`
+        });
+        // Update last used
+        await fetch(`/api/saved-configs/${configId}/use`, { method: 'POST' });
+      }
+    } catch (error) {
+      console.error('Error loading config:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load configuration",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Save current configuration
+  const saveCurrentConfig = async (name: string, description?: string) => {
+    try {
+      const response = await fetch('/api/saved-configs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description, configuration: config })
+      });
+      if (response.ok) {
+        toast({
+          title: "Configuration Saved",
+          description: `Saved as "${name}"`
+        });
+        fetchSavedConfigs(); // Refresh list
+      } else {
+        throw new Error('Failed to save');
+      }
+    } catch (error) {
+      console.error('Error saving config:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save configuration",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Fetch data on component mount
+  useEffect(() => {
+    if (user) {
+      fetchCallHistory();
+      fetchSavedConfigs();
+    }
+  }, [user]);
 
   // Format phone number for display (strips +1 for input field)
   const formatPhoneForDisplay = (phone: string) => {
@@ -544,6 +644,17 @@ export default function CleanAIDashboard() {
                 <h1 className="text-2xl font-bold tracking-tight">Verbio AI</h1>
                 <p className="text-xs text-muted-foreground">Voice Intelligence Platform</p>
               </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push('/recordings')}
+              >
+                <Mic className="w-4 h-4 mr-1" />
+                All Recordings
+              </Button>
             </div>
 
             <div className="flex items-center space-x-4">
@@ -982,6 +1093,194 @@ export default function CleanAIDashboard() {
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Call History and Saved Configs Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+          {/* Call History */}
+          <Card className="border-0 shadow-xl">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Recent Calls</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={fetchCallHistory}
+                  disabled={loadingHistory}
+                >
+                  {loadingHistory ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
+                </Button>
+              </CardTitle>
+              <CardDescription>View your call history and recordings</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[400px] w-full">
+                {loadingHistory ? (
+                  <div className="flex justify-center p-4">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : callHistory.length === 0 ? (
+                  <div className="text-center text-muted-foreground p-4">
+                    No call history yet.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {callHistory.map((call) => (
+                      <div key={call.id} className="border rounded-lg p-3 hover:bg-muted/50 transition-colors">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={call.direction === 'OUTBOUND' ? 'default' : 'secondary'}>
+                              {call.direction === 'OUTBOUND' ? <PhoneCall className="w-3 h-3 mr-1" /> : <Phone className="w-3 h-3 mr-1" />}
+                              {call.direction}
+                            </Badge>
+                            <Badge variant={
+                              call.status === 'COMPLETED' ? 'success' :
+                              call.status === 'FAILED' ? 'destructive' :
+                              'outline'
+                            }>
+                              {call.status}
+                            </Badge>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(call.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-sm">
+                            <span className="font-medium">{call.phoneNumber}</span>
+                            {call.duration > 0 && (
+                              <span className="text-muted-foreground ml-2">
+                                ({formatDuration(call.duration)})
+                              </span>
+                            )}
+                          </div>
+                          {call.recording && (
+                            <div className="flex items-center gap-2 mt-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => window.open(call.recording.recordingUrl, '_blank')}
+                              >
+                                <Mic className="w-3 h-3 mr-1" />
+                                Play Recording
+                              </Button>
+                              {call.transcript && (
+                                <Badge variant="outline">Transcript Available</Badge>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          {/* Saved Configurations */}
+          <Card className="border-0 shadow-xl">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Saved Configurations</span>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const name = prompt('Configuration name:');
+                      if (name) {
+                        const desc = prompt('Description (optional):');
+                        saveCurrentConfig(name, desc || undefined);
+                      }
+                    }}
+                  >
+                    <Save className="h-4 w-4 mr-1" />
+                    Save Current
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={fetchSavedConfigs}
+                    disabled={loadingConfigs}
+                  >
+                    {loadingConfigs ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
+                  </Button>
+                </div>
+              </CardTitle>
+              <CardDescription>Load and manage your saved AI configurations</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[400px] w-full">
+                {loadingConfigs ? (
+                  <div className="flex justify-center p-4">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : savedConfigs.length === 0 ? (
+                  <div className="text-center text-muted-foreground p-4">
+                    No saved configurations yet.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {savedConfigs.map((config) => (
+                      <div key={config.id} className="border rounded-lg p-3 hover:bg-muted/50 transition-colors">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h4 className="font-semibold">{config.name}</h4>
+                            {config.description && (
+                              <p className="text-sm text-muted-foreground">{config.description}</p>
+                            )}
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => loadSavedConfig(config.id)}
+                            >
+                              Load
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={async () => {
+                                if (confirm(`Delete "${config.name}"?`)) {
+                                  try {
+                                    await fetch(`/api/saved-configs?id=${config.id}`, { method: 'DELETE' });
+                                    fetchSavedConfigs();
+                                    toast({
+                                      title: "Configuration Deleted",
+                                      description: `Deleted "${config.name}"`
+                                    });
+                                  } catch (error) {
+                                    toast({
+                                      title: "Error",
+                                      description: "Failed to delete configuration",
+                                      variant: "destructive"
+                                    });
+                                  }
+                                }
+                              }}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground space-y-1">
+                          <div>Voice: {config.configuration?.voice || 'default'}</div>
+                          {config.configuration?.turn_detection && (
+                            <div>VAD: {config.configuration.turn_detection.type}</div>
+                          )}
+                          {config.lastUsedAt && (
+                            <div>Last used: {new Date(config.lastUsedAt).toLocaleDateString()}</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>

@@ -315,7 +315,7 @@ app.all("/call-status", express_1.default.urlencoded({ extended: false }), (req,
         console.log("Call status update received:", req.body);
         // Forward to webapp for database updates
         try {
-            const webappUrl = process.env.WEBAPP_URL || 'http://localhost:3000';
+            const webappUrl = process.env.WEBAPP_URL || 'https://verbio.app';
             yield fetch(`${webappUrl}/api/twilio/call-status`, {
                 method: 'POST',
                 headers: {
@@ -347,7 +347,7 @@ app.all("/recording-status", express_1.default.urlencoded({ extended: false }), 
             console.log(`  Duration: ${RecordingDuration} seconds`);
             // Store recording info in database via webhook to webapp
             try {
-                const webappUrl = process.env.WEBAPP_URL || 'http://localhost:3000';
+                const webappUrl = process.env.WEBAPP_URL || 'https://verbio.app';
                 yield fetch(`${webappUrl}/api/recordings/webhook`, {
                     method: 'POST',
                     headers: {
