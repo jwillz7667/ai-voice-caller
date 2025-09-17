@@ -472,7 +472,7 @@ export default function CleanAIDashboard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phone_number: formattedPhone,
+          phoneNumber: formattedPhone,  // Fixed: using camelCase to match API expectation
           record_call: config.record_call
         })
       });
