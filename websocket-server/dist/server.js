@@ -85,6 +85,15 @@ const twimlHandlebars = handlebars_1.default.compile(twimlTemplate);
 app.get("/public-url", (req, res) => {
     res.json({ publicUrl: PUBLIC_URL });
 });
+// Health check endpoint for monitoring
+app.get("/health", (req, res) => {
+    res.json({
+        status: "healthy",
+        timestamp: new Date().toISOString(),
+        version: "1.0.0",
+        uptime: process.uptime()
+    });
+});
 // Provide available voice list to the frontend
 app.get("/voices", (req, res) => {
     try {
@@ -251,26 +260,85 @@ app.post("/make-call", express_1.default.json(), (req, res) => __awaiter(void 0,
             res.status(400).json({ error: "Phone number is required" });
             return;
         }
+        // Validate phone number format
+        const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+        if (!phoneRegex.test(phoneNumber.replace(/[\s()-]/g, ''))) {
+            res.status(400).json({ error: "Invalid phone number format" });
+            return;
+        }
+        // Check environment variables
+        if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) {
+            console.error("Missing Twilio credentials");
+            res.status(500).json({ error: "Server configuration error: Missing Twilio credentials" });
+            return;
+        }
+        if (!PUBLIC_URL) {
+            console.error("Missing PUBLIC_URL configuration");
+            res.status(500).json({ error: "Server configuration error: Missing PUBLIC_URL" });
+            return;
+        }
         // Make sure we're using the secure public URL for production
         const twilioClient = require("twilio")(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
         // Get the TwiML URL for the call
         const twimlUrl = new URL("/twiml", PUBLIC_URL).toString();
+        console.log(`[make-call] Using TwiML URL: ${twimlUrl}`);
         // Place the outgoing call using Twilio
         const call = yield twilioClient.calls.create({
             to: phoneNumber,
             from: process.env.TWILIO_PHONE_NUMBER,
             url: twimlUrl,
+            statusCallback: new URL("/call-status", PUBLIC_URL).toString(),
+            statusCallbackEvent: ["initiated", "ringing", "answered", "completed"]
         });
-        res.json({ success: true, callSid: call.sid });
+        console.log(`[make-call] Call initiated successfully: ${call.sid}`);
+        res.json({
+            success: true,
+            callSid: call.sid,
+            message: "Call initiated successfully"
+        });
     }
     catch (error) {
         console.error("Error making outgoing call:", error);
-        res.status(500).json({
-            error: "Failed to make outgoing call",
-            message: error.message
+        // Provide more specific error messages
+        let errorMessage = "Failed to make outgoing call";
+        let statusCode = 500;
+        if (error.code === 20003) {
+            errorMessage = "Authentication failed. Please check Twilio credentials.";
+            statusCode = 401;
+        }
+        else if (error.code === 21211) {
+            errorMessage = "Invalid phone number format";
+            statusCode = 400;
+        }
+        else if (error.code === 21214) {
+            errorMessage = "The 'To' phone number is not a valid phone number";
+            statusCode = 400;
+        }
+        else if (error.code === 21217) {
+            errorMessage = "The 'From' phone number is not a valid phone number or is not verified";
+            statusCode = 400;
+        }
+        res.status(statusCode).json({
+            error: errorMessage,
+            details: error.message,
+            code: error.code
         });
     }
 }));
+// Call status webhook for Twilio
+app.post("/call-status", express_1.default.urlencoded({ extended: false }), (req, res) => {
+    try {
+        const { CallSid, CallStatus, To, From, Direction } = req.body;
+        console.log(`[call-status] Call ${CallSid}: ${CallStatus} (${Direction} - From: ${From}, To: ${To})`);
+        // You can add additional logic here to update call status in database
+        // or notify connected WebSocket clients
+        res.status(200).send("OK");
+    }
+    catch (error) {
+        console.error("Error handling call status:", error);
+        res.status(500).send("Error");
+    }
+});
 // Add this new endpoint for handling configuration data
 app.post("/config", express_1.default.json(), (req, res) => {
     try {

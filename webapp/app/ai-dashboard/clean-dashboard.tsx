@@ -142,12 +142,19 @@ export default function CleanAIDashboard() {
     const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:8081';
     const logsWsUrl = `${wsUrl}/logs`;
 
-    try {
-      // Connect to logs WebSocket for monitoring calls
-      const logsWebsocket = new WebSocket(logsWsUrl);
+    let reconnectTimer: NodeJS.Timeout;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 10;
+    const reconnectDelay = (attempt: number) => Math.min(1000 * Math.pow(2, attempt), 30000); // Exponential backoff with max 30s
 
-      logsWebsocket.onopen = () => {
-        setIsConnected(true);
+    const connectWebSocket = () => {
+      try {
+        // Connect to logs WebSocket for monitoring calls
+        const logsWebsocket = new WebSocket(logsWsUrl);
+
+        logsWebsocket.onopen = () => {
+          setIsConnected(true);
+          reconnectAttempts = 0; // Reset attempts on successful connection
         addLog('info', 'Connected to monitoring server');
       };
 
@@ -166,29 +173,53 @@ export default function CleanAIDashboard() {
         }
       };
 
-      logsWebsocket.onerror = (_error) => {
-        console.error('WebSocket error:', _error);
-        addLog('warning', 'Monitoring connection error - calls will still work');
-        // Don't set isConnected to false on error - calls can still work via API
-      };
+        logsWebsocket.onerror = (_error) => {
+          console.error('WebSocket error:', _error);
+          addLog('warning', 'Monitoring connection error - reconnecting...');
+        };
 
-      logsWebsocket.onclose = () => {
-        setIsConnected(false);
-        // Don't set isCallActive to false - let the call API handle that
-        addLog('info', 'Monitoring disconnected');
-      };
+        logsWebsocket.onclose = () => {
+          setIsConnected(false);
+          addLog('info', 'Monitoring disconnected');
 
-      setWs(logsWebsocket);
-      _setLogsWs(logsWebsocket);
+          // Attempt to reconnect with exponential backoff
+          if (reconnectAttempts < maxReconnectAttempts) {
+            const delay = reconnectDelay(reconnectAttempts);
+            reconnectAttempts++;
+            addLog('info', `Attempting to reconnect in ${delay / 1000}s... (attempt ${reconnectAttempts}/${maxReconnectAttempts})`);
+            reconnectTimer = setTimeout(connectWebSocket, delay);
+          } else {
+            addLog('error', 'Max reconnection attempts reached. Please refresh the page.');
+          }
+        };
 
-      return () => {
-        logsWebsocket.close();
-      };
-    } catch (_error) {
-      console.error('Failed to connect to monitoring WebSocket:', _error);
-      addLog('info', 'Monitoring unavailable - calls will still work');
-    }
-  }, [user]);
+        setWs(logsWebsocket);
+        _setLogsWs(logsWebsocket);
+      } catch (_error) {
+        console.error('Failed to create WebSocket:', _error);
+        addLog('warning', 'Could not connect to monitoring server - retrying...');
+
+        if (reconnectAttempts < maxReconnectAttempts) {
+          const delay = reconnectDelay(reconnectAttempts);
+          reconnectAttempts++;
+          reconnectTimer = setTimeout(connectWebSocket, delay);
+        }
+      }
+    };
+
+    // Initial connection
+    connectWebSocket();
+
+    // Cleanup function
+    return () => {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+      }
+      if (ws) {
+        ws.close();
+      }
+    };
+  }, [user]); // Remove other dependencies that could cause reconnection loops
 
   // Handle messages from backend
   const handleWebSocketMessage = (data: any) => {
