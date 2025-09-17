@@ -15,7 +15,10 @@ import { initializeSentry, Sentry } from "./services/sentry";
 import logger, { logError, logWebSocketEvent, logCallEvent } from "./services/logger";
 import { requestLogger } from "./middleware/requestLogger";
 
-dotenv.config();
+// Only load .env in development
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config();
+}
 
 // Enable dynamic port switching
 // Get port from environment variable or command line argument

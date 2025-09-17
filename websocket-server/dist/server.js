@@ -51,7 +51,10 @@ const redis_1 = __importDefault(require("./services/redis"));
 const sentry_1 = require("./services/sentry");
 const logger_1 = __importStar(require("./services/logger"));
 const requestLogger_1 = require("./middleware/requestLogger");
-dotenv_1.default.config();
+// Only load .env in development
+if (process.env.NODE_ENV !== 'production') {
+    dotenv_1.default.config();
+}
 // Enable dynamic port switching
 // Get port from environment variable or command line argument
 const PORT = parseInt(process.env.PORT || process.argv[2] || "8081", 10);
