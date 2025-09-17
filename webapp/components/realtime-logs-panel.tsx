@@ -65,9 +65,10 @@ export const RealtimeLogs = ({ logs, fullPage = false }: { logs: LogEntry[], ful
     log.type.includes('close');
 
   // Toggle expanded state of a log entry
-    setExpandedLogs(prev => 
-      prev.includes(index) 
-        ? prev.filter(i => i !== index) 
+  const toggleExpanded = (index: number) => {
+    setExpandedLogs(prev =>
+      prev.includes(index)
+        ? prev.filter(i => i !== index)
         : [...prev, index]
     );
   };
