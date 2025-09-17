@@ -48,6 +48,9 @@ const sessionManager = __importStar(require("./sessionManager"));
 const functionHandlers_1 = __importDefault(require("./functionHandlers"));
 const errorHandler_1 = require("./middleware/errorHandler");
 const redis_1 = __importDefault(require("./services/redis"));
+const sentry_1 = require("./services/sentry");
+const logger_1 = __importStar(require("./services/logger"));
+const requestLogger_1 = require("./middleware/requestLogger");
 dotenv_1.default.config();
 // Enable dynamic port switching
 // Get port from environment variable or command line argument
@@ -56,10 +59,16 @@ exports.PORT = PORT;
 const PUBLIC_URL = process.env.PUBLIC_URL || "";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 if (!OPENAI_API_KEY) {
-    console.error("OPENAI_API_KEY environment variable is required");
+    logger_1.default.error("OPENAI_API_KEY environment variable is required");
     process.exit(1);
 }
 const app = (0, express_1.default)();
+// Initialize Sentry before other middleware
+(0, sentry_1.initializeSentry)(app);
+// Sentry request handler must be first middleware
+// Note: Sentry v10 doesn't have request middleware, it's automatic
+// Request logging middleware
+app.use(requestLogger_1.requestLogger);
 // Security improvements
 app.use((0, cors_1.default)({
     origin: process.env.NODE_ENV === 'production'
@@ -163,7 +172,7 @@ app.all("/twiml", (req, res) => {
     }
     catch (e) {
         // Fallback to default on any error
-        console.warn('Could not read saved session config for recording preference:', e);
+        logger_1.default.warn('Could not read saved session config for recording preference:', e);
     }
     // Build callback URLs relative to current request host for robustness
     const cbBase = host ? `https://${host}` : (PUBLIC_URL || '');
@@ -186,15 +195,15 @@ app.all("/twiml", (req, res) => {
                 recordingStatusCallback: recordingStatusUrl,
             })
                 .then(() => {
-                console.log(`Started recording for CallSid=${callSid}`);
+                (0, logger_1.logCallEvent)(callSid, 'Recording started');
             })
                 .catch((err) => {
-                console.error("Failed to start call recording:", (err === null || err === void 0 ? void 0 : err.message) || err);
+                (0, logger_1.logError)(new Error(`Failed to start call recording: ${(err === null || err === void 0 ? void 0 : err.message) || err}`), { callSid });
             });
         }
     }
     catch (e) {
-        console.error("Error attempting to start call recording:", (e === null || e === void 0 ? void 0 : e.message) || e);
+        (0, logger_1.logError)(new Error(`Error attempting to start call recording: ${(e === null || e === void 0 ? void 0 : e.message) || e}`), { callSid: recordCall });
     }
 });
 // Optional: TwiML endpoint to dial a SIP URI (e.g., OpenAI Realtime SIP)
@@ -231,10 +240,10 @@ app.all("/twiml-sip", (req, res) => {
 // SIP status callback to observe Twilio <Dial> lifecycle for SIP calls
 app.post("/sip-status", express_1.default.urlencoded({ extended: false }), (req, res) => {
     try {
-        console.log("SIP status callback:", req.body);
+        logger_1.default.info("SIP status callback", req.body);
     }
     catch (e) {
-        console.error("Error logging SIP status:", e);
+        (0, logger_1.logError)(e, { context: 'SIP status callback' });
     }
     res.type("text/xml").send("<Response/>");
 });
@@ -260,8 +269,8 @@ app.get("/tools", (req, res) => {
 });
 // Add endpoint for initiating outgoing calls
 app.post("/make-call", express_1.default.json(), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { phoneNumber } = req.body;
     try {
-        const { phoneNumber } = req.body;
         if (!phoneNumber) {
             res.status(400).json({ error: "Phone number is required" });
             return;
@@ -274,12 +283,12 @@ app.post("/make-call", express_1.default.json(), (req, res) => __awaiter(void 0,
         }
         // Check environment variables
         if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) {
-            console.error("Missing Twilio credentials");
+            logger_1.default.error("Missing Twilio credentials");
             res.status(500).json({ error: "Server configuration error: Missing Twilio credentials" });
             return;
         }
         if (!PUBLIC_URL) {
-            console.error("Missing PUBLIC_URL configuration");
+            logger_1.default.error("Missing PUBLIC_URL configuration");
             res.status(500).json({ error: "Server configuration error: Missing PUBLIC_URL" });
             return;
         }
@@ -287,7 +296,7 @@ app.post("/make-call", express_1.default.json(), (req, res) => __awaiter(void 0,
         const twilioClient = require("twilio")(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
         // Get the TwiML URL for the call
         const twimlUrl = new URL("/twiml", PUBLIC_URL).toString();
-        console.log(`[make-call] Using TwiML URL: ${twimlUrl}`);
+        logger_1.default.info(`[make-call] Using TwiML URL: ${twimlUrl}`);
         // Place the outgoing call using Twilio
         const call = yield twilioClient.calls.create({
             to: phoneNumber,
@@ -296,7 +305,7 @@ app.post("/make-call", express_1.default.json(), (req, res) => __awaiter(void 0,
             statusCallback: new URL("/call-status", PUBLIC_URL).toString(),
             statusCallbackEvent: ["initiated", "ringing", "answered", "completed"]
         });
-        console.log(`[make-call] Call initiated successfully: ${call.sid}`);
+        (0, logger_1.logCallEvent)(call.sid, 'Call initiated', { phoneNumber: phoneNumber, twimlUrl });
         res.json({
             success: true,
             callSid: call.sid,
@@ -304,7 +313,7 @@ app.post("/make-call", express_1.default.json(), (req, res) => __awaiter(void 0,
         });
     }
     catch (error) {
-        console.error("Error making outgoing call:", error);
+        (0, logger_1.logError)(error, { context: 'make-call', phoneNumber: phoneNumber });
         // Provide more specific error messages
         let errorMessage = "Failed to make outgoing call";
         let statusCode = 500;
@@ -335,13 +344,13 @@ app.post("/make-call", express_1.default.json(), (req, res) => __awaiter(void 0,
 app.post("/call-status", express_1.default.urlencoded({ extended: false }), (req, res) => {
     try {
         const { CallSid, CallStatus, To, From, Direction } = req.body;
-        console.log(`[call-status] Call ${CallSid}: ${CallStatus} (${Direction} - From: ${From}, To: ${To})`);
+        (0, logger_1.logCallEvent)(CallSid, `Call status: ${CallStatus}`, { Direction, From, To });
         // You can add additional logic here to update call status in database
         // or notify connected WebSocket clients
         res.status(200).send("OK");
     }
     catch (error) {
-        console.error("Error handling call status:", error);
+        (0, logger_1.logError)(error, { context: 'call-status webhook' });
         res.status(500).send("Error");
     }
 });
@@ -349,7 +358,7 @@ app.post("/call-status", express_1.default.urlencoded({ extended: false }), (req
 app.post("/config", express_1.default.json(), (req, res) => {
     try {
         const config = req.body;
-        console.log("Received session configuration:", config);
+        logger_1.default.info("Received session configuration", config);
         // Store the configuration in the session manager
         if (sessionManager.setSessionConfig) {
             sessionManager.setSessionConfig(config);
@@ -360,7 +369,7 @@ app.post("/config", express_1.default.json(), (req, res) => {
         }
     }
     catch (error) {
-        console.error("Error handling configuration:", error);
+        (0, logger_1.logError)(error, { context: 'configuration endpoint' });
         res.status(500).json({ error: "Failed to process configuration" });
     }
 });
@@ -368,7 +377,7 @@ app.post("/config", express_1.default.json(), (req, res) => {
 app.post("/session-config", express_1.default.json(), (req, res) => {
     try {
         const config = req.body;
-        console.log("Received session configuration:", config);
+        logger_1.default.info("Received session configuration", config);
         // Store the configuration in the session manager
         if (sessionManager.setSessionConfig) {
             sessionManager.setSessionConfig(config);
@@ -386,7 +395,7 @@ app.post("/session-config", express_1.default.json(), (req, res) => {
 // Add call status callback endpoint (Twilio posts x-www-form-urlencoded)
 app.all("/call-status", express_1.default.urlencoded({ extended: false }), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        console.log("Call status update received:", req.body);
+        logger_1.default.info("Call status update received", req.body);
         // Forward to webapp for database updates
         try {
             const webappUrl = process.env.WEBAPP_URL || 'https://verbio.app';
@@ -399,26 +408,27 @@ app.all("/call-status", express_1.default.urlencoded({ extended: false }), (req,
             });
         }
         catch (error) {
-            console.error('Failed to notify webapp of call status:', error);
+            (0, logger_1.logError)(error, { context: 'webapp notification' });
         }
         // Send 204 No Content response for Twilio
         res.status(204).send();
     }
     catch (error) {
-        console.error("Error handling call status:", error);
+        (0, logger_1.logError)(error, { context: 'call-status webhook' });
         res.status(204).send();
     }
 }));
 // Add recording status callback endpoint (Twilio posts x-www-form-urlencoded)
 app.all("/recording-status", express_1.default.urlencoded({ extended: false }), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        console.log("Recording status update received:", req.body);
+        logger_1.default.info("Recording status update received", req.body);
         const { RecordingSid, RecordingUrl, RecordingStatus, RecordingDuration, CallSid } = req.body;
         if (RecordingStatus === 'completed' && RecordingUrl) {
-            console.log(`Recording completed for call ${CallSid}:`);
-            console.log(`  Recording SID: ${RecordingSid}`);
-            console.log(`  Recording URL: ${RecordingUrl}`);
-            console.log(`  Duration: ${RecordingDuration} seconds`);
+            (0, logger_1.logCallEvent)(CallSid, 'Recording completed', {
+                RecordingSid,
+                RecordingUrl,
+                RecordingDuration
+            });
             // Store recording info in database via webhook to webapp
             try {
                 const webappUrl = process.env.WEBAPP_URL || 'https://verbio.app';
@@ -437,7 +447,7 @@ app.all("/recording-status", express_1.default.urlencoded({ extended: false }), 
                 });
             }
             catch (error) {
-                console.error('Failed to notify webapp of recording:', error);
+                (0, logger_1.logError)(error, { context: 'webapp recording notification' });
             }
         }
         // Example of recording data from Twilio:
@@ -449,7 +459,7 @@ app.all("/recording-status", express_1.default.urlencoded({ extended: false }), 
         res.status(200).send();
     }
     catch (error) {
-        console.error("Error handling recording status:", error);
+        (0, logger_1.logError)(error, { context: 'recording-status webhook' });
         res.status(500).json({ error: "Failed to process recording status" });
     }
 }));
@@ -457,6 +467,8 @@ let currentCall = null;
 let currentLogs = null;
 // Add 404 handler for undefined routes
 app.use(errorHandler_1.notFoundHandler);
+// Sentry error handler must be before any other error middleware
+app.use(sentry_1.Sentry.expressErrorHandler());
 // Add global error handler (must be last)
 app.use(errorHandler_1.errorHandler);
 // WebSocket heartbeat configuration
@@ -478,7 +490,7 @@ function heartbeat(ws) {
     // Set up periodic ping
     client.heartbeatTimer = setInterval(() => {
         if (!client.isAlive) {
-            console.log(`[Heartbeat] Connection dead, terminating: ${client.connectionInfo}`);
+            (0, logger_1.logWebSocketEvent)('heartbeat', 'Connection dead, terminating', { connectionInfo: client.connectionInfo });
             ws.terminate();
             wsClients.delete(ws);
             return;
@@ -487,7 +499,7 @@ function heartbeat(ws) {
         ws.ping();
         // Set timeout for pong response
         client.timeoutTimer = setTimeout(() => {
-            console.log(`[Heartbeat] No pong received, terminating: ${client.connectionInfo}`);
+            (0, logger_1.logWebSocketEvent)('heartbeat', 'No pong received, terminating', { connectionInfo: client.connectionInfo });
             ws.terminate();
             wsClients.delete(ws);
         }, HEARTBEAT_TIMEOUT);
@@ -499,7 +511,7 @@ wss.on("connection", (ws, req) => {
     const clientIp = req.socket.remoteAddress || 'unknown';
     // Validate URLs and origin for security
     if (!req.url) {
-        console.error("WebSocket connection without URL");
+        logger_1.default.error("WebSocket connection without URL");
         ws.close(1008, "Invalid connection");
         return;
     }
@@ -508,13 +520,13 @@ wss.on("connection", (ws, req) => {
         const origin = req.headers.origin;
         const allowedOrigins = [process.env.ALLOWED_ORIGIN, process.env.PUBLIC_URL].filter(Boolean);
         if (allowedOrigins.length > 0 && origin && !allowedOrigins.includes(origin)) {
-            console.error(`Rejected WebSocket from unauthorized origin: ${origin}`);
+            logger_1.default.error(`Rejected WebSocket from unauthorized origin: ${origin}`);
             ws.close(1008, "Unauthorized origin");
             return;
         }
     }
     const connectionInfo = `${req.url} from ${clientIp}`;
-    console.log(`New WebSocket connection: ${connectionInfo}`);
+    (0, logger_1.logWebSocketEvent)('connection', 'New WebSocket connection', { connectionInfo });
     // Register client for heartbeat
     wsClients.set(ws, {
         isAlive: true,
@@ -535,7 +547,7 @@ wss.on("connection", (ws, req) => {
     });
     // Add connection timeout
     const connectionTimeout = setTimeout(() => {
-        console.log(`Closing inactive WebSocket connection: ${req.url}`);
+        (0, logger_1.logWebSocketEvent)('timeout', 'Closing inactive connection', { url: req.url });
         ws.close(1001, "Connection timeout");
     }, 30 * 60 * 1000); // 30 minutes timeout
     ws.on('close', () => {
@@ -551,25 +563,23 @@ wss.on("connection", (ws, req) => {
         }
     });
     if (req.url === "/call") {
-        console.log("New Twilio call connection established");
+        (0, logger_1.logWebSocketEvent)('twilio', 'New Twilio call connection established');
         sessionManager.handleCallConnection(ws, OPENAI_API_KEY).catch(err => {
-            console.error("Error handling call connection:", err);
+            (0, logger_1.logError)(err, { context: 'Twilio call connection' });
         });
     }
     else if (req.url === "/logs") {
-        console.log("New frontend logs connection established");
+        (0, logger_1.logWebSocketEvent)('logs', 'New frontend logs connection established');
         sessionManager.handleFrontendConnection(ws);
     }
     else {
-        console.error(`Unknown WebSocket connection type: ${req.url}`);
+        logger_1.default.error(`Unknown WebSocket connection type: ${req.url}`);
         ws.close(1008, "Invalid endpoint");
     }
 });
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
-    // Display ngrok command suggestion if PUBLIC_URL is not set
-    if (!PUBLIC_URL || PUBLIC_URL === "your-ngrok-url.ngrok-free.app") {
-        console.log(`To expose this server to the internet, run: ngrok http ${PORT}`);
-        console.log(`Then update PUBLIC_URL in your .env file with the ngrok URL`);
+    logger_1.default.info(`Server running on http://0.0.0.0:${PORT}`);
+    if (PUBLIC_URL) {
+        logger_1.default.info(`Public URL: ${PUBLIC_URL}`);
     }
 });

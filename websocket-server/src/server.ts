@@ -34,7 +34,7 @@ const app = express();
 initializeSentry(app);
 
 // Sentry request handler must be first middleware
-app.use(Sentry.expressRequestMiddleware());
+// Note: Sentry v10 doesn't have request middleware, it's automatic
 
 // Request logging middleware
 app.use(requestLogger);
@@ -175,7 +175,7 @@ app.all("/twiml", (req: express.Request, res: express.Response) => {
         });
     }
   } catch (e: any) {
-    logError(new Error(`Error attempting to start call recording: ${e?.message || e}`), { callSid: recordCallSid });
+    logError(new Error(`Error attempting to start call recording: ${e?.message || e}`), { callSid: recordCall });
   }
 });
 
@@ -242,8 +242,9 @@ app.get("/tools", (req: express.Request, res: express.Response) => {
 
 // Add endpoint for initiating outgoing calls
 app.post("/make-call", express.json(), async (req: express.Request, res: express.Response) => {
+  const { phoneNumber } = req.body;
+
   try {
-    const { phoneNumber } = req.body;
 
     if (!phoneNumber) {
       res.status(400).json({ error: "Phone number is required" });
@@ -289,14 +290,14 @@ app.post("/make-call", express.json(), async (req: express.Request, res: express
       statusCallbackEvent: ["initiated", "ringing", "answered", "completed"]
     });
 
-    logCallEvent(call.sid, 'Call initiated', { phoneNumber, twimlUrl });
+    logCallEvent(call.sid, 'Call initiated', { phoneNumber: phoneNumber, twimlUrl });
     res.json({
       success: true,
       callSid: call.sid,
       message: "Call initiated successfully"
     });
   } catch (error: any) {
-    logError(error, { context: 'make-call', phoneNumber });
+    logError(error, { context: 'make-call', phoneNumber: phoneNumber });
 
     // Provide more specific error messages
     let errorMessage = "Failed to make outgoing call";

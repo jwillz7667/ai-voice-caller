@@ -11,13 +11,13 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
   const originalEnd = res.end;
 
   // Override the end function to log response
-  res.end = function(...args: any[]) {
+  res.end = function(...args: any[]): Response {
     const duration = Date.now() - startTime;
     logAPIRequest(req.method, req.path, res.statusCode, duration);
 
     // Call the original end function
-    originalEnd.apply(res, args);
-  };
+    return originalEnd.apply(res, args as any) as Response;
+  } as any;
 
   next();
 }

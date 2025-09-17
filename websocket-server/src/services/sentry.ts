@@ -11,8 +11,8 @@ export function initializeSentry(app?: Application) {
     dsn: process.env.SENTRY_DSN,
     environment: process.env.NODE_ENV || 'development',
     integrations: [
-      Sentry.httpIntegration({ tracing: true }),
-      Sentry.expressIntegration({ app }),
+      Sentry.httpIntegration(),
+      Sentry.expressIntegration(),
     ],
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
     beforeSend(event, hint) {
@@ -22,12 +22,13 @@ export function initializeSentry(app?: Application) {
           delete event.request.headers.authorization;
           delete event.request.headers.cookie;
         }
-        if (event.request.data) {
+        if (event.request.data && typeof event.request.data === 'object') {
           // Remove sensitive fields from request body
           const sensitiveFields = ['password', 'passwordHash', 'apiKey', 'token', 'secret'];
+          const data = event.request.data as Record<string, any>;
           sensitiveFields.forEach(field => {
-            if (event.request.data[field]) {
-              event.request.data[field] = '[REDACTED]';
+            if (data[field]) {
+              data[field] = '[REDACTED]';
             }
           });
         }
@@ -37,9 +38,7 @@ export function initializeSentry(app?: Application) {
   });
 
   // Set up user context
-  Sentry.configureScope(scope => {
-    scope.setTag('service', 'websocket-server');
-  });
+  Sentry.setTag('service', 'websocket-server');
 }
 
 export function captureCallError(sessionId: string, error: Error, context?: any) {
