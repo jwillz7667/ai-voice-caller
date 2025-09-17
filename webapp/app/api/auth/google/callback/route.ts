@@ -17,19 +17,28 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get("code");
     const error = searchParams.get("error");
 
+    console.log("Google OAuth callback received:", {
+      code: code ? "Present" : "Missing",
+      error: error || "None",
+      url: request.url
+    });
+
     if (error) {
+      console.error("OAuth error from Google:", error);
       return NextResponse.redirect(
-        new URL(`/auth/signin?error=${encodeURIComponent(error)}`, request.url)
+        new URL(`/login?error=${encodeURIComponent(error)}`, request.url)
       );
     }
 
     if (!code) {
+      console.error("No authorization code provided");
       return NextResponse.redirect(
-        new URL("/auth/signin?error=No authorization code provided", request.url)
+        new URL("/login?error=No authorization code provided", request.url)
       );
     }
 
     // Exchange code for tokens
+    console.log("Exchanging code for tokens...");
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
@@ -108,7 +117,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error("Google OAuth callback error:", error);
     return NextResponse.redirect(
-      new URL(`/auth/signin?error=${encodeURIComponent(error.message || "Authentication failed")}`, request.url)
+      new URL(`/login?error=${encodeURIComponent(error.message || "Authentication failed")}`, request.url)
     );
   }
 }

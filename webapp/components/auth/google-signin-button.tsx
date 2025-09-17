@@ -17,6 +17,7 @@ export function GoogleSignInButton({ className, onSuccess }: GoogleSignInButtonP
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
+      console.log("Starting Google OAuth flow...");
 
       // Call the Google OAuth endpoint
       const response = await fetch("/api/auth/google", {
@@ -26,7 +27,9 @@ export function GoogleSignInButton({ className, onSuccess }: GoogleSignInButtonP
         },
       });
 
+      console.log("OAuth response status:", response.status);
       const data = await response.json();
+      console.log("OAuth response data:", data);
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to sign in with Google");
@@ -34,6 +37,7 @@ export function GoogleSignInButton({ className, onSuccess }: GoogleSignInButtonP
 
       // Redirect to Google OAuth URL
       if (data.authUrl) {
+        console.log("Redirecting to Google OAuth:", data.authUrl);
         window.location.href = data.authUrl;
       } else {
         // Handle successful authentication
@@ -46,9 +50,10 @@ export function GoogleSignInButton({ className, onSuccess }: GoogleSignInButtonP
     } catch (error: any) {
       console.error("Google sign-in error:", error);
       toast.error(error.message || "Failed to sign in with Google");
-    } finally {
+      // Keep loading state false on error
       setLoading(false);
     }
+    // Don't set loading to false here since we're redirecting
   };
 
   return (

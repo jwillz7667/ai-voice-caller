@@ -29,6 +29,7 @@ import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/components/ui/use-toast";
 import DTMFPhonePad from "@/components/dtmf-phone-pad";
+import { DashboardHeader } from "@/components/dashboard-header";
 
 // Simple configuration to send to backend
 interface SessionConfig {
@@ -603,8 +604,11 @@ export default function CleanAIDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl">
+      {/* Header with Sign Out */}
+      <DashboardHeader />
+
+      {/* Original Header Content */}
+      <header className="sticky top-0 z-40 border-b bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">

@@ -13,6 +13,13 @@ const oauth2Client = new OAuth2Client(
 
 export async function POST(_request: NextRequest) {
   try {
+    // Log environment variables for debugging (remove in production)
+    console.log("Google OAuth Config:", {
+      clientId: process.env.GOOGLE_CLIENT_ID ? "Set" : "Not set",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET ? "Set" : "Not set",
+      redirectUri: process.env.GOOGLE_REDIRECT_URI || "http://localhost:3000/api/auth/google/callback"
+    });
+
     // Generate the Google OAuth URL
     const scopes = [
       "https://www.googleapis.com/auth/userinfo.email",
@@ -25,6 +32,7 @@ export async function POST(_request: NextRequest) {
       prompt: "consent",
     });
 
+    console.log("Generated auth URL:", authUrl);
     return NextResponse.json({ authUrl });
   } catch (error) {
     console.error("Google OAuth error:", error);

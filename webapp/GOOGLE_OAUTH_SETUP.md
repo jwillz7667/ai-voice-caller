@@ -11,12 +11,12 @@
 
 #### Production:
 ```
-https://verbio.app/api/auth/callback/google
+https://verbio.app/api/auth/google/callback
 ```
 
 #### Development:
 ```
-http://localhost:3000/api/auth/callback/google
+http://localhost:3000/api/auth/google/callback
 ```
 
 ### 3. Required Authorized JavaScript Origins
