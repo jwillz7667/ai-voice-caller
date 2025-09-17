@@ -3,6 +3,7 @@ import functions from "./functionHandlers";
 import { isKnownRealtimeEvent } from './realtimeEvents';
 import twilio from 'twilio';
 import { dtmfHandler, DTMFHandler } from './dtmfHandler';
+import redisService from './services/redis';
 
 // µ-law decoding table
 const MULAW_DECODE_TABLE = new Int16Array([

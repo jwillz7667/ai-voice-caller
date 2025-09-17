@@ -46,6 +46,8 @@ const cors_1 = __importDefault(require("cors"));
 const handlebars_1 = __importDefault(require("handlebars"));
 const sessionManager = __importStar(require("./sessionManager"));
 const functionHandlers_1 = __importDefault(require("./functionHandlers"));
+const errorHandler_1 = require("./middleware/errorHandler");
+const redis_1 = __importDefault(require("./services/redis"));
 dotenv_1.default.config();
 // Enable dynamic port switching
 // Get port from environment variable or command line argument
@@ -86,14 +88,18 @@ app.get("/public-url", (req, res) => {
     res.json({ publicUrl: PUBLIC_URL });
 });
 // Health check endpoint for monitoring
-app.get("/health", (req, res) => {
+app.get("/health", (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const redisHealth = yield redis_1.default.healthCheck();
     res.json({
         status: "healthy",
         timestamp: new Date().toISOString(),
         version: "1.0.0",
-        uptime: process.uptime()
+        uptime: process.uptime(),
+        services: {
+            redis: redisHealth
+        }
     });
-});
+})));
 // Provide available voice list to the frontend
 app.get("/voices", (req, res) => {
     try {
@@ -449,6 +455,44 @@ app.all("/recording-status", express_1.default.urlencoded({ extended: false }), 
 }));
 let currentCall = null;
 let currentLogs = null;
+// Add 404 handler for undefined routes
+app.use(errorHandler_1.notFoundHandler);
+// Add global error handler (must be last)
+app.use(errorHandler_1.errorHandler);
+// WebSocket heartbeat configuration
+const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+const HEARTBEAT_TIMEOUT = 60000; // 60 seconds (if no pong received)
+// Track WebSocket connections with heartbeat
+const wsClients = new Map();
+// Heartbeat function
+function heartbeat(ws) {
+    const client = wsClients.get(ws);
+    if (!client)
+        return;
+    // Clear existing timers
+    if (client.heartbeatTimer)
+        clearInterval(client.heartbeatTimer);
+    if (client.timeoutTimer)
+        clearTimeout(client.timeoutTimer);
+    client.isAlive = true;
+    // Set up periodic ping
+    client.heartbeatTimer = setInterval(() => {
+        if (!client.isAlive) {
+            console.log(`[Heartbeat] Connection dead, terminating: ${client.connectionInfo}`);
+            ws.terminate();
+            wsClients.delete(ws);
+            return;
+        }
+        client.isAlive = false;
+        ws.ping();
+        // Set timeout for pong response
+        client.timeoutTimer = setTimeout(() => {
+            console.log(`[Heartbeat] No pong received, terminating: ${client.connectionInfo}`);
+            ws.terminate();
+            wsClients.delete(ws);
+        }, HEARTBEAT_TIMEOUT);
+    }, HEARTBEAT_INTERVAL);
+}
 // Improved WebSocket connection handler
 wss.on("connection", (ws, req) => {
     // Add basic rate limiting
@@ -469,7 +513,26 @@ wss.on("connection", (ws, req) => {
             return;
         }
     }
-    console.log(`New WebSocket connection: ${req.url} from ${clientIp}`);
+    const connectionInfo = `${req.url} from ${clientIp}`;
+    console.log(`New WebSocket connection: ${connectionInfo}`);
+    // Register client for heartbeat
+    wsClients.set(ws, {
+        isAlive: true,
+        connectionInfo
+    });
+    // Start heartbeat
+    heartbeat(ws);
+    // Handle pong responses
+    ws.on('pong', () => {
+        const client = wsClients.get(ws);
+        if (client) {
+            client.isAlive = true;
+            if (client.timeoutTimer) {
+                clearTimeout(client.timeoutTimer);
+                client.timeoutTimer = undefined;
+            }
+        }
+    });
     // Add connection timeout
     const connectionTimeout = setTimeout(() => {
         console.log(`Closing inactive WebSocket connection: ${req.url}`);
@@ -477,6 +540,15 @@ wss.on("connection", (ws, req) => {
     }, 30 * 60 * 1000); // 30 minutes timeout
     ws.on('close', () => {
         clearTimeout(connectionTimeout);
+        // Clean up heartbeat
+        const client = wsClients.get(ws);
+        if (client) {
+            if (client.heartbeatTimer)
+                clearInterval(client.heartbeatTimer);
+            if (client.timeoutTimer)
+                clearTimeout(client.timeoutTimer);
+            wsClients.delete(ws);
+        }
     });
     if (req.url === "/call") {
         console.log("New Twilio call connection established");

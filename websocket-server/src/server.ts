@@ -9,6 +9,8 @@ import cors from "cors";
 import Handlebars from "handlebars";
 import * as sessionManager from "./sessionManager";
 import functions from "./functionHandlers";
+import { errorHandler, notFoundHandler, asyncHandler } from "./middleware/errorHandler";
+import redisService from "./services/redis";
 
 dotenv.config();
 
@@ -59,14 +61,19 @@ app.get("/public-url", (req: express.Request, res: express.Response) => {
 });
 
 // Health check endpoint for monitoring
-app.get("/health", (req: express.Request, res: express.Response) => {
+app.get("/health", asyncHandler(async (req: express.Request, res: express.Response) => {
+  const redisHealth = await redisService.healthCheck();
+
   res.json({
     status: "healthy",
     timestamp: new Date().toISOString(),
     version: "1.0.0",
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    services: {
+      redis: redisHealth
+    }
   });
-});
+}));
 
 // Provide available voice list to the frontend
 app.get("/voices", (req: express.Request, res: express.Response) => {
@@ -443,23 +450,73 @@ app.all("/recording-status", express.urlencoded({ extended: false }), async (req
 let currentCall: WebSocket | null = null;
 let currentLogs: WebSocket | null = null;
 
+// Add 404 handler for undefined routes
+app.use(notFoundHandler);
+
+// Add global error handler (must be last)
+app.use(errorHandler);
+
+// WebSocket heartbeat configuration
+const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+const HEARTBEAT_TIMEOUT = 60000; // 60 seconds (if no pong received)
+
+// Track WebSocket connections with heartbeat
+const wsClients = new Map<WebSocket, {
+  isAlive: boolean;
+  heartbeatTimer?: NodeJS.Timeout;
+  timeoutTimer?: NodeJS.Timeout;
+  connectionInfo: string;
+}>();
+
+// Heartbeat function
+function heartbeat(ws: WebSocket) {
+  const client = wsClients.get(ws);
+  if (!client) return;
+
+  // Clear existing timers
+  if (client.heartbeatTimer) clearInterval(client.heartbeatTimer);
+  if (client.timeoutTimer) clearTimeout(client.timeoutTimer);
+
+  client.isAlive = true;
+
+  // Set up periodic ping
+  client.heartbeatTimer = setInterval(() => {
+    if (!client.isAlive) {
+      console.log(`[Heartbeat] Connection dead, terminating: ${client.connectionInfo}`);
+      ws.terminate();
+      wsClients.delete(ws);
+      return;
+    }
+
+    client.isAlive = false;
+    ws.ping();
+
+    // Set timeout for pong response
+    client.timeoutTimer = setTimeout(() => {
+      console.log(`[Heartbeat] No pong received, terminating: ${client.connectionInfo}`);
+      ws.terminate();
+      wsClients.delete(ws);
+    }, HEARTBEAT_TIMEOUT);
+  }, HEARTBEAT_INTERVAL);
+}
+
 // Improved WebSocket connection handler
 wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
   // Add basic rate limiting
   const clientIp = req.socket.remoteAddress || 'unknown';
-  
+
   // Validate URLs and origin for security
   if (!req.url) {
     console.error("WebSocket connection without URL");
     ws.close(1008, "Invalid connection");
     return;
   }
-  
+
   // Prevent connections from unauthorized origins in production
   if (process.env.NODE_ENV === 'production') {
     const origin = req.headers.origin;
     const allowedOrigins = [process.env.ALLOWED_ORIGIN, process.env.PUBLIC_URL].filter(Boolean);
-    
+
     if (allowedOrigins.length > 0 && origin && !allowedOrigins.includes(origin)) {
       console.error(`Rejected WebSocket from unauthorized origin: ${origin}`);
       ws.close(1008, "Unauthorized origin");
@@ -467,16 +524,46 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
     }
   }
 
-  console.log(`New WebSocket connection: ${req.url} from ${clientIp}`);
+  const connectionInfo = `${req.url} from ${clientIp}`;
+  console.log(`New WebSocket connection: ${connectionInfo}`);
+
+  // Register client for heartbeat
+  wsClients.set(ws, {
+    isAlive: true,
+    connectionInfo
+  });
+
+  // Start heartbeat
+  heartbeat(ws);
+
+  // Handle pong responses
+  ws.on('pong', () => {
+    const client = wsClients.get(ws);
+    if (client) {
+      client.isAlive = true;
+      if (client.timeoutTimer) {
+        clearTimeout(client.timeoutTimer);
+        client.timeoutTimer = undefined;
+      }
+    }
+  });
 
   // Add connection timeout
   const connectionTimeout = setTimeout(() => {
     console.log(`Closing inactive WebSocket connection: ${req.url}`);
     ws.close(1001, "Connection timeout");
   }, 30 * 60 * 1000); // 30 minutes timeout
-  
+
   ws.on('close', () => {
     clearTimeout(connectionTimeout);
+
+    // Clean up heartbeat
+    const client = wsClients.get(ws);
+    if (client) {
+      if (client.heartbeatTimer) clearInterval(client.heartbeatTimer);
+      if (client.timeoutTimer) clearTimeout(client.timeoutTimer);
+      wsClients.delete(ws);
+    }
   });
 
   if (req.url === "/call") {
